@@ -194,6 +194,7 @@
             <span class="export-label">OPÇÕES DE EXPORTAÇÃO</span>
             <button class="btn btn-excel" onclick="exportar('csv')">📥 EXPORTAR EXCEL (CSV)</button>
             <button class="btn" style="background:#4a5568;color:white;" onclick="exportar('json')">💾 SALVAR BACKUP (JSON)</button>
+            <button class="btn" style="background:#c53030;color:white;" onclick="limparTodosDados()">🗑️ APAGAR TODOS OS DADOS</button>
         </div>
     </div>
 
@@ -208,6 +209,7 @@
             <span class="export-label">OPÇÕES DE EXPORTAÇÃO</span>
             <button class="btn btn-excel" onclick="exportarXLS('csv')">📥 EXPORTAR EXCEL (CSV)</button>
             <button class="btn" style="background:#4a5568;color:white;" onclick="exportarXLS('json')">💾 SALVAR BACKUP (JSON)</button>
+            <button class="btn" style="background:#c53030;color:white;" onclick="limparTodosDados()">🗑️ APAGAR TODOS OS DADOS</button>
         </div>
     </div>
 
@@ -489,6 +491,37 @@
         if (tab === 'tab3') atualizarDashboard();
     }
 
+    /* ===== LOCAL STORAGE ===== */
+    const STORAGE_KEY_PDF = 'solomix_baseDados';
+    const STORAGE_KEY_XLS = 'solomix_baseDadosXLS';
+
+    function chaveRegistroPDF(d) {
+        return [d.filial||'', d.nf||'', d.contrato||'', d.datM||'', d.datR||'', d.cp1||'', d.cp2||''].join('|');
+    }
+
+    function chaveRegistroXLS(d) {
+        return [d.nf||'', d.contrato||'', d.datM||'', d.datR||'', d.cp1||'', d.cp2||'', d.id||''].join('|');
+    }
+
+    function salvarLocalStorage() {
+        try {
+            localStorage.setItem(STORAGE_KEY_PDF, JSON.stringify(baseDados));
+            localStorage.setItem(STORAGE_KEY_XLS, JSON.stringify(baseDadosXLS));
+        } catch(e) {
+            console.warn('Erro ao salvar no localStorage:', e);
+        }
+    }
+
+    function limparTodosDados() {
+        if (!confirm('Apagar TODOS os dados salvos? Esta ação não pode ser desfeita.')) return;
+        baseDados = [];
+        baseDadosXLS = [];
+        localStorage.removeItem(STORAGE_KEY_PDF);
+        localStorage.removeItem(STORAGE_KEY_XLS);
+        renderTabela();
+        renderTabelaXLS();
+    }
+
     /* ==========================================================
        TAB 1  –  PDF / Relatórios (lógica original, inalterada)
        ========================================================== */
@@ -500,10 +533,15 @@
         const files = e.target.files;
         if (!files.length) return;
         let possuiPDF = false;
+        let totalImportados = 0, totalIgnorados = 0;
         for (let file of files) {
             const ext = file.name.split('.').pop().toLowerCase();
             if (ext === 'pdf') possuiPDF = true;
-            else if (ext === 'csv' || ext === 'json') await processarArquivoTexto(file, ext);
+            else if (ext === 'csv' || ext === 'json') {
+                const r = await processarArquivoTexto(file, ext);
+                totalImportados += r.importados;
+                totalIgnorados += r.ignorados;
+            }
         }
         if (possuiPDF) {
             arquivosPendentes = Array.from(files).filter(f => f.name.toLowerCase().endsWith('.pdf'));
@@ -511,6 +549,8 @@
         } else {
             renderTabela();
             e.target.value = "";
+            if (totalIgnorados > 0) alert(`✅ ${totalImportados} registro(s) importado(s).\n⚠️ ${totalIgnorados} registro(s) ignorado(s) por já existirem no sistema.`);
+            else if (totalImportados > 0) alert(`✅ ${totalImportados} registro(s) importado(s) com sucesso.`);
         }
     });
 
@@ -519,23 +559,35 @@
             const reader = new FileReader();
             reader.onload = (e) => {
                 const conteudo = e.target.result;
+                const existingKeys = new Set(baseDados.map(chaveRegistroPDF));
+                let importados = 0, ignorados = 0;
                 if (tipo === 'json') {
-                    try { baseDados = baseDados.concat(JSON.parse(conteudo)); } catch(err) { console.error(err); }
+                    try {
+                        const newRecords = JSON.parse(conteudo);
+                        newRecords.forEach(d => {
+                            const key = chaveRegistroPDF(d);
+                            if (!existingKeys.has(key)) { existingKeys.add(key); baseDados.push(d); importados++; }
+                            else ignorados++;
+                        });
+                    } catch(err) { console.error(err); }
                 } else if (tipo === 'csv') {
                     const linhas = conteudo.split('\n');
                     for (let i = 1; i < linhas.length; i++) {
                         if (!linhas[i].trim()) continue;
                         const col = linhas[i].split(';');
                         if (col.length >= 16) {
-                            baseDados.push({
+                            const d = {
                                 filial: col[0].replace(/^\ufeff/, ""), nf: col[1], contrato: col[2], cli: col[3],
                                 datM: col[4], datR: col[5], idadeRelatorio: col[7], fck: col[8], consumo: col[9],
                                 cp1: col[10], cg1: parseFloat(col[11]) || 0, cp2: col[13], cg2: parseFloat(col[14]) || 0
-                            });
+                            };
+                            const key = chaveRegistroPDF(d);
+                            if (!existingKeys.has(key)) { existingKeys.add(key); baseDados.push(d); importados++; }
+                            else ignorados++;
                         }
                     }
                 }
-                resolve();
+                resolve({ importados, ignorados });
             };
             reader.readAsText(file);
         });
@@ -544,6 +596,8 @@
     async function confirmarFilial() {
         const nomeFilial = document.getElementById('selectFilialPrompt').value;
         document.getElementById('modalFilial').style.display = 'none';
+        const existingKeys = new Set(baseDados.map(chaveRegistroPDF));
+        const antesCount = baseDados.length;
         for (let f of arquivosPendentes) {
             const doc = await pdfjsLib.getDocument(await f.arrayBuffer()).promise;
             for (let i = 1; i <= doc.numPages; i++) {
@@ -553,8 +607,17 @@
                 extract(lines, nomeFilial);
             }
         }
+        /* Deduplicate newly extracted records */
+        const novos = baseDados.splice(antesCount);
+        let importados = 0, ignorados = 0;
+        novos.forEach(d => {
+            const key = chaveRegistroPDF(d);
+            if (!existingKeys.has(key)) { existingKeys.add(key); baseDados.push(d); importados++; }
+            else ignorados++;
+        });
         renderTabela();
         document.getElementById('fileIn').value = "";
+        if (ignorados > 0) alert(`✅ ${importados} registro(s) importado(s).\n⚠️ ${ignorados} registro(s) ignorado(s) por já existirem no sistema.`);
     }
 
     function sortLines(items) {
@@ -635,6 +698,7 @@
         atualizarSelects();
         executarFiltro();
         if (document.getElementById('tab3-content').classList.contains('active-tab')) atualizarDashboard();
+        salvarLocalStorage();
     }
 
     /* ---- Update dropdown filters (Tab 1) ---- */
@@ -762,8 +826,17 @@
         const ext = file.name.split('.').pop().toLowerCase();
 
         if (ext === 'json') {
-            try { baseDadosXLS = baseDadosXLS.concat(JSON.parse(await file.text())); }
-            catch (err) { alert('Erro ao ler JSON: ' + err.message); }
+            try {
+                const newRecords = JSON.parse(await file.text());
+                const existingKeysJson = new Set(baseDadosXLS.map(chaveRegistroXLS));
+                let importadosJson = 0, ignoradosJson = 0;
+                newRecords.forEach(d => {
+                    const key = chaveRegistroXLS(d);
+                    if (!existingKeysJson.has(key)) { existingKeysJson.add(key); baseDadosXLS.push(d); importadosJson++; }
+                    else ignoradosJson++;
+                });
+                if (ignoradosJson > 0) alert(`✅ ${importadosJson} registro(s) importado(s).\n⚠️ ${ignoradosJson} registro(s) ignorado(s) por já existirem no sistema.`);
+            } catch (err) { alert('Erro ao ler JSON: ' + err.message); }
             renderTabelaXLS(); e.target.value = ""; return;
         }
 
@@ -811,7 +884,8 @@
             id:             findCol('id'),
         };
 
-        let added = 0;
+        const existingKeysXLS = new Set(baseDadosXLS.map(chaveRegistroXLS));
+        let added = 0, skipped = 0;
         for (let i = 1; i < rows.length; i++) {
             const row = rows[i];
             if (!row || row.every(c => c === '' || c === null || c === undefined)) continue;
@@ -837,7 +911,7 @@
                 if (!isNaN(m) && m > 0) cg2 = m * AREA;
             }
 
-            baseDadosXLS.push({
+            const novoRegistro = {
                 filial:         get(colMap.filial) || 'DIVINOPOLIS',
                 nf:             get(colMap.nf),
                 contrato:       get(colMap.contrato),
@@ -854,12 +928,15 @@
                 pecaConcretada: get(colMap.pecaConcretada),
                 controle:       get(colMap.controle),
                 id:             get(colMap.id),
-            });
-            added++;
+            };
+            const key = chaveRegistroXLS(novoRegistro);
+            if (!existingKeysXLS.has(key)) { existingKeysXLS.add(key); baseDadosXLS.push(novoRegistro); added++; }
+            else skipped++;
         }
 
         if (added > 0) renderTabelaXLS();
-        else alert('Nenhuma linha válida encontrada.\nVerifique os cabeçalhos da planilha.');
+        if (added === 0 && skipped === 0) alert('Nenhuma linha válida encontrada.\nVerifique os cabeçalhos da planilha.');
+        else if (skipped > 0) alert(`✅ ${added} registro(s) importado(s).\n⚠️ ${skipped} registro(s) ignorado(s) por já existirem no sistema.`);
         e.target.value = "";
     });
 
@@ -897,6 +974,7 @@
         atualizarSelectsXLS();
         executarFiltroXLS();
         if (document.getElementById('tab3-content').classList.contains('active-tab')) atualizarDashboard();
+        salvarLocalStorage();
     }
 
     /* ---- Update dropdown filters (Tab 2) ---- */
@@ -1405,6 +1483,20 @@
         }
         fecharModalDado();
     }
+
+    /* ===== INITIALIZATION – restore persisted data ===== */
+    (function() {
+        try {
+            const pdf = localStorage.getItem(STORAGE_KEY_PDF);
+            const xls = localStorage.getItem(STORAGE_KEY_XLS);
+            if (pdf) baseDados = JSON.parse(pdf);
+            if (xls) baseDadosXLS = JSON.parse(xls);
+            if (baseDados.length) renderTabela();
+            if (baseDadosXLS.length) renderTabelaXLS();
+        } catch(e) {
+            console.warn('Erro ao carregar dados locais:', e);
+        }
+    })();
 </script>
 </body>
 </html>
