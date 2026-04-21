@@ -68,6 +68,14 @@
         .dash-badge { display: inline-block; padding: 2px 7px; border-radius: 9px; font-size: 10px; font-weight: bold; color: white; background: #38a169; }
         .dash-badge.red { background: #e53e3e; }
         .stat-card-dash { background: white; padding: 12px 10px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); text-align: center; }
+        .modal-edit-overlay { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.55); align-items: flex-start; justify-content: center; overflow-y: auto; }
+        .modal-edit-box { background: white; padding: 28px 30px; border-radius: 14px; width: 560px; max-width: 95vw; box-shadow: 0 6px 30px rgba(0,0,0,0.3); margin: 30px auto; }
+        .modal-edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .modal-edit-label { font-size: 10px; font-weight: bold; color: #718096; text-transform: uppercase; letter-spacing: .5px; }
+        .modal-edit-input { width: 100%; padding: 6px 8px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 12px; margin-top: 3px; box-sizing: border-box; }
+        .modal-edit-footer { display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end; }
+        .modal-edit-title { margin: 0 0 18px 0; color: #2d3748; font-size: 16px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
+        .btn-edit { background: #3182ce; margin-right: 4px; }
     </style>
 </head>
 <body>
@@ -94,78 +102,78 @@
 </div>
 
 <!-- Modal Inserir / Editar Registro -->
-<div id="modalEditarDado" style="display:none;position:fixed;z-index:2000;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,0.55);align-items:flex-start;justify-content:center;overflow-y:auto;">
-    <div style="background:white;padding:28px 30px;border-radius:14px;width:560px;max-width:95vw;box-shadow:0 6px 30px rgba(0,0,0,0.3);margin:30px auto;">
-        <h3 id="modalDadoTitulo" style="margin:0 0 18px 0;color:#2d3748;font-size:16px;border-bottom:2px solid #e2e8f0;padding-bottom:10px;">Inserir Registro</h3>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+<div id="modalEditarDado" class="modal-edit-overlay">
+    <div class="modal-edit-box">
+        <h3 id="modalDadoTitulo" class="modal-edit-title">Inserir Registro</h3>
+        <div class="modal-edit-grid">
             <div>
-                <label style="font-size:10px;font-weight:bold;color:#718096;text-transform:uppercase;letter-spacing:.5px;">Filial</label>
-                <select id="mFilial" style="width:100%;padding:6px 8px;border:1px solid #cbd5e0;border-radius:6px;font-size:12px;margin-top:3px;box-sizing:border-box;"></select>
+                <label class="modal-edit-label">Filial</label>
+                <select id="mFilial" class="modal-edit-input"></select>
             </div>
             <div>
-                <label style="font-size:10px;font-weight:bold;color:#718096;text-transform:uppercase;letter-spacing:.5px;">NF</label>
-                <input type="text" id="mNf" style="width:100%;padding:6px 8px;border:1px solid #cbd5e0;border-radius:6px;font-size:12px;margin-top:3px;box-sizing:border-box;">
+                <label class="modal-edit-label">NF</label>
+                <input type="text" id="mNf" class="modal-edit-input">
             </div>
             <div>
-                <label style="font-size:10px;font-weight:bold;color:#718096;text-transform:uppercase;letter-spacing:.5px;">Contrato</label>
-                <input type="text" id="mContrato" style="width:100%;padding:6px 8px;border:1px solid #cbd5e0;border-radius:6px;font-size:12px;margin-top:3px;box-sizing:border-box;">
+                <label class="modal-edit-label">Contrato</label>
+                <input type="text" id="mContrato" class="modal-edit-input">
             </div>
             <div>
-                <label style="font-size:10px;font-weight:bold;color:#718096;text-transform:uppercase;letter-spacing:.5px;">Cliente</label>
-                <input type="text" id="mCli" style="width:100%;padding:6px 8px;border:1px solid #cbd5e0;border-radius:6px;font-size:12px;margin-top:3px;box-sizing:border-box;">
+                <label class="modal-edit-label">Cliente</label>
+                <input type="text" id="mCli" class="modal-edit-input">
             </div>
             <div>
-                <label style="font-size:10px;font-weight:bold;color:#718096;text-transform:uppercase;letter-spacing:.5px;">Data Moldagem (DD/MM/AAAA)</label>
-                <input type="text" id="mDatM" placeholder="01/01/2025" style="width:100%;padding:6px 8px;border:1px solid #cbd5e0;border-radius:6px;font-size:12px;margin-top:3px;box-sizing:border-box;">
+                <label class="modal-edit-label">Data Moldagem (DD/MM/AAAA)</label>
+                <input type="text" id="mDatM" placeholder="01/01/2025" class="modal-edit-input">
             </div>
             <div>
-                <label style="font-size:10px;font-weight:bold;color:#718096;text-transform:uppercase;letter-spacing:.5px;">Data Ruptura (DD/MM/AAAA)</label>
-                <input type="text" id="mDatR" placeholder="29/01/2025" style="width:100%;padding:6px 8px;border:1px solid #cbd5e0;border-radius:6px;font-size:12px;margin-top:3px;box-sizing:border-box;">
+                <label class="modal-edit-label">Data Ruptura (DD/MM/AAAA)</label>
+                <input type="text" id="mDatR" placeholder="29/01/2025" class="modal-edit-input">
             </div>
             <div>
-                <label style="font-size:10px;font-weight:bold;color:#718096;text-transform:uppercase;letter-spacing:.5px;">Idade Ref. (dias)</label>
-                <input type="text" id="mIdadeRelatorio" placeholder="ex: 28" style="width:100%;padding:6px 8px;border:1px solid #cbd5e0;border-radius:6px;font-size:12px;margin-top:3px;box-sizing:border-box;">
+                <label class="modal-edit-label">Idade Ref. (dias)</label>
+                <input type="text" id="mIdadeRelatorio" placeholder="ex: 28" class="modal-edit-input">
             </div>
             <div>
-                <label style="font-size:10px;font-weight:bold;color:#718096;text-transform:uppercase;letter-spacing:.5px;">FCK Projeto</label>
-                <input type="text" id="mFck" placeholder="ex: 30.00" style="width:100%;padding:6px 8px;border:1px solid #cbd5e0;border-radius:6px;font-size:12px;margin-top:3px;box-sizing:border-box;">
+                <label class="modal-edit-label">FCK Projeto</label>
+                <input type="text" id="mFck" placeholder="ex: 30.00" class="modal-edit-input">
             </div>
             <div>
-                <label style="font-size:10px;font-weight:bold;color:#718096;text-transform:uppercase;letter-spacing:.5px;">Consumo (kg/m³)</label>
-                <input type="text" id="mConsumo" placeholder="ex: 350" style="width:100%;padding:6px 8px;border:1px solid #cbd5e0;border-radius:6px;font-size:12px;margin-top:3px;box-sizing:border-box;">
+                <label class="modal-edit-label">Consumo (kg/m³)</label>
+                <input type="text" id="mConsumo" placeholder="ex: 350" class="modal-edit-input">
             </div>
             <div></div>
             <div>
-                <label style="font-size:10px;font-weight:bold;color:#718096;text-transform:uppercase;letter-spacing:.5px;">CP 1</label>
-                <input type="text" id="mCp1" style="width:100%;padding:6px 8px;border:1px solid #cbd5e0;border-radius:6px;font-size:12px;margin-top:3px;box-sizing:border-box;">
+                <label class="modal-edit-label">CP 1</label>
+                <input type="text" id="mCp1" class="modal-edit-input">
             </div>
             <div>
-                <label style="font-size:10px;font-weight:bold;color:#718096;text-transform:uppercase;letter-spacing:.5px;">Carga 1 (kN)</label>
-                <input type="number" id="mCg1" step="any" min="0" style="width:100%;padding:6px 8px;border:1px solid #cbd5e0;border-radius:6px;font-size:12px;margin-top:3px;box-sizing:border-box;">
+                <label class="modal-edit-label">Carga 1 (kN)</label>
+                <input type="number" id="mCg1" step="any" min="0" class="modal-edit-input">
             </div>
             <div>
-                <label style="font-size:10px;font-weight:bold;color:#718096;text-transform:uppercase;letter-spacing:.5px;">CP 2</label>
-                <input type="text" id="mCp2" style="width:100%;padding:6px 8px;border:1px solid #cbd5e0;border-radius:6px;font-size:12px;margin-top:3px;box-sizing:border-box;">
+                <label class="modal-edit-label">CP 2</label>
+                <input type="text" id="mCp2" class="modal-edit-input">
             </div>
             <div>
-                <label style="font-size:10px;font-weight:bold;color:#718096;text-transform:uppercase;letter-spacing:.5px;">Carga 2 (kN)</label>
-                <input type="number" id="mCg2" step="any" min="0" style="width:100%;padding:6px 8px;border:1px solid #cbd5e0;border-radius:6px;font-size:12px;margin-top:3px;box-sizing:border-box;">
+                <label class="modal-edit-label">Carga 2 (kN)</label>
+                <input type="number" id="mCg2" step="any" min="0" class="modal-edit-input">
             </div>
             <!-- XLS-only fields -->
             <div id="mRowPeca">
-                <label style="font-size:10px;font-weight:bold;color:#718096;text-transform:uppercase;letter-spacing:.5px;">Peça Concretada</label>
-                <input type="text" id="mPeca" style="width:100%;padding:6px 8px;border:1px solid #cbd5e0;border-radius:6px;font-size:12px;margin-top:3px;box-sizing:border-box;">
+                <label class="modal-edit-label">Peça Concretada</label>
+                <input type="text" id="mPeca" class="modal-edit-input">
             </div>
             <div id="mRowControle">
-                <label style="font-size:10px;font-weight:bold;color:#718096;text-transform:uppercase;letter-spacing:.5px;">Controle</label>
-                <input type="text" id="mControle" style="width:100%;padding:6px 8px;border:1px solid #cbd5e0;border-radius:6px;font-size:12px;margin-top:3px;box-sizing:border-box;">
+                <label class="modal-edit-label">Controle</label>
+                <input type="text" id="mControle" class="modal-edit-input">
             </div>
             <div id="mRowId" style="grid-column:span 2;">
-                <label style="font-size:10px;font-weight:bold;color:#718096;text-transform:uppercase;letter-spacing:.5px;">ID</label>
-                <input type="text" id="mId" style="width:100%;padding:6px 8px;border:1px solid #cbd5e0;border-radius:6px;font-size:12px;margin-top:3px;box-sizing:border-box;">
+                <label class="modal-edit-label">ID</label>
+                <input type="text" id="mId" class="modal-edit-input">
             </div>
         </div>
-        <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end;">
+        <div class="modal-edit-footer">
             <button onclick="fecharModalDado()" style="padding:8px 18px;border-radius:6px;border:1px solid #cbd5e0;background:white;cursor:pointer;color:#4a5568;font-weight:bold;font-size:13px;">Cancelar</button>
             <button onclick="salvarModalDado()" style="padding:8px 22px;border-radius:6px;border:none;background:#3182ce;color:white;cursor:pointer;font-weight:bold;font-size:13px;">💾 Salvar</button>
         </div>
@@ -621,7 +629,7 @@
                 <td contenteditable="true" onblur="baseDados[${index}].cp2=this.innerText;atualizarSelects()" class="cp2">${d.cp2}</td>
                 <td contenteditable="true" onblur="baseDados[${index}].cg2=parseFloat(this.innerText.replace(',','.'));atualizarMpaCell(this,15);atualizarSelects();executarFiltro()" class="cp2">${d.cg2}</td>
                 <td class="res-col cp2">${(d.cg2/AREA).toFixed(2)}</td>
-                <td><button class="btn-del" style="background:#3182ce;margin-right:4px;" onclick="abrirModalDado('pdf',${index})" title="Editar">✏️</button><button class="btn-del" onclick="if(confirm('Excluir?')){baseDados.splice(${index},1);renderTabela();}">X</button></td>
+                <td><button class="btn-del btn-edit" onclick="abrirModalDado('pdf',${index})" title="Editar">✏️</button><button class="btn-del" onclick="if(confirm('Excluir?')){baseDados.splice(${index},1);renderTabela();}">X</button></td>
             </tr>`;
         }).join('');
         atualizarSelects();
@@ -883,7 +891,7 @@
                 <td class="col-peca" contenteditable="true" onblur="baseDadosXLS[${index}].pecaConcretada=this.innerText;atualizarSelectsXLS()">${d.pecaConcretada||''}</td>
                 <td class="col-controle" contenteditable="true" onblur="baseDadosXLS[${index}].controle=this.innerText;atualizarSelectsXLS()">${d.controle||''}</td>
                 <td contenteditable="true" onblur="baseDadosXLS[${index}].id=this.innerText;atualizarSelectsXLS()">${d.id||''}</td>
-                <td><button class="btn-del" style="background:#3182ce;margin-right:4px;" onclick="abrirModalDado('xls',${index})" title="Editar">✏️</button><button class="btn-del" onclick="if(confirm('Excluir?')){baseDadosXLS.splice(${index},1);renderTabelaXLS();}">X</button></td>
+                <td><button class="btn-del btn-edit" onclick="abrirModalDado('xls',${index})" title="Editar">✏️</button><button class="btn-del" onclick="if(confirm('Excluir?')){baseDadosXLS.splice(${index},1);renderTabelaXLS();}">X</button></td>
             </tr>`;
         }).join('');
         atualizarSelectsXLS();
@@ -1060,6 +1068,7 @@
         const filtControle = document.getElementById('dashFiltroControle').value;
         const filtPeca     = document.getElementById('dashFiltroPeca').value;
         const filtIdade    = document.getElementById('dashFiltroIdade').value;
+        const filtIdadeNum = filtIdade ? parseInt(filtIdade) : null;
 
         return todos.filter(d => {
             const datM = converterData(d.datM);
@@ -1073,9 +1082,9 @@
             if (filtCli      && d.cli            !== filtCli)      return false;
             if (filtControle && (d.controle||'') !== filtControle) return false;
             if (filtPeca     && (d.pecaConcretada||'') !== filtPeca) return false;
-            if (filtIdade) {
+            if (filtIdadeNum !== null) {
                 const idadeRef = parseInt(d.idadeRelatorio);
-                if (isNaN(idadeRef) || idadeRef !== parseInt(filtIdade)) return false;
+                if (isNaN(idadeRef) || idadeRef !== filtIdadeNum) return false;
             }
             return true;
         });
