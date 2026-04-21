@@ -204,6 +204,27 @@
     const pdfjsLib = window['pdfjs-dist/build/pdf'];
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
+    /* ===== PERFORMANCE HELPERS ===== */
+    /* Update only the "Idade Real" cell when a date field changes */
+    function atualizarIdadeCell(td) {
+        const tr = td.closest('tr');
+        tr.cells[6].textContent = calcularIdade(
+            tr.cells[4].innerText.trim(),
+            tr.cells[5].innerText.trim()
+        );
+    }
+
+    /* Update only the computed MPa cell when a load (carga) field changes */
+    function atualizarMpaCell(td, mpaColIdx) {
+        const val = parseFloat(td.innerText.replace(',', '.')) || 0;
+        td.closest('tr').cells[mpaColIdx].textContent = (val / AREA).toFixed(2);
+    }
+
+    /* Escape HTML special characters to prevent XSS in option strings */
+    function escHtml(str) {
+        return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+
     /* ===== SHARED UTILITIES ===== */
     function converterData(str) {
         if (!str) return null;
@@ -365,17 +386,17 @@
                 <td contenteditable="true" onblur="baseDados[${index}].nf=this.innerText;atualizarSelects()">${d.nf}</td>
                 <td class="col-contrato" contenteditable="true" onblur="baseDados[${index}].contrato=this.innerText;atualizarSelects()">${d.contrato}</td>
                 <td contenteditable="true" onblur="baseDados[${index}].cli=this.innerText;atualizarSelects()">${d.cli}</td>
-                <td contenteditable="true" onblur="baseDados[${index}].datM=this.innerText;renderTabela()">${d.datM}</td>
-                <td contenteditable="true" onblur="baseDados[${index}].datR=this.innerText;renderTabela()">${d.datR}</td>
+                <td contenteditable="true" onblur="baseDados[${index}].datM=this.innerText;atualizarIdadeCell(this);atualizarSelects();executarFiltro()">${d.datM}</td>
+                <td contenteditable="true" onblur="baseDados[${index}].datR=this.innerText;atualizarIdadeCell(this);atualizarSelects();executarFiltro()">${d.datR}</td>
                 <td style="font-weight:bold">${calcularIdade(d.datM,d.datR)}</td>
                 <td class="col-ruptura-ref" contenteditable="true" onblur="baseDados[${index}].idadeRelatorio=this.innerText;atualizarSelects()">${d.idadeRelatorio}</td>
                 <td contenteditable="true" onblur="baseDados[${index}].fck=this.innerText;executarFiltro()">${d.fck}</td>
                 <td contenteditable="true" onblur="baseDados[${index}].consumo=this.innerText;atualizarSelects()">${d.consumo}</td>
                 <td contenteditable="true" onblur="baseDados[${index}].cp1=this.innerText;atualizarSelects()" class="cp1">${d.cp1}</td>
-                <td contenteditable="true" onblur="baseDados[${index}].cg1=parseFloat(this.innerText.replace(',','.'));renderTabela()" class="cp1">${d.cg1}</td>
+                <td contenteditable="true" onblur="baseDados[${index}].cg1=parseFloat(this.innerText.replace(',','.'));atualizarMpaCell(this,12);atualizarSelects();executarFiltro()" class="cp1">${d.cg1}</td>
                 <td class="res-col cp1">${(d.cg1/AREA).toFixed(2)}</td>
                 <td contenteditable="true" onblur="baseDados[${index}].cp2=this.innerText;atualizarSelects()" class="cp2">${d.cp2}</td>
-                <td contenteditable="true" onblur="baseDados[${index}].cg2=parseFloat(this.innerText.replace(',','.'));renderTabela()" class="cp2">${d.cg2}</td>
+                <td contenteditable="true" onblur="baseDados[${index}].cg2=parseFloat(this.innerText.replace(',','.'));atualizarMpaCell(this,15);atualizarSelects();executarFiltro()" class="cp2">${d.cg2}</td>
                 <td class="res-col cp2">${(d.cg2/AREA).toFixed(2)}</td>
                 <td><button class="btn-del" onclick="if(confirm('Excluir?')){baseDados.splice(${index},1);renderTabela();}">X</button></td>
             </tr>`;
@@ -387,24 +408,33 @@
     function atualizarSelects() {
         const selects = document.querySelectorAll('#tabelaMain .filter-input');
         const colunas = ['filial','nf','contrato','cli','datM','datR','idadeReal','idadeRelatorio','fck','consumo','cp1','cg1','mpa1','cp2','cg2','mpa2'];
+        const n = Math.min(selects.length, colunas.length);
+        const uniqueSets = Array.from({length: n}, () => new Set());
+        /* Single pass over data — collect unique values for all columns at once */
+        baseDados.forEach(d => {
+            const idadeReal = String(calcularIdade(d.datM, d.datR));
+            const mpa1 = (d.cg1/AREA).toFixed(2);
+            const mpa2 = (d.cg2/AREA).toFixed(2);
+            for (let i = 0; i < n; i++) {
+                let val;
+                if (colunas[i] === 'idadeReal') val = idadeReal;
+                else if (colunas[i] === 'mpa1') val = mpa1;
+                else if (colunas[i] === 'mpa2') val = mpa2;
+                else val = d[colunas[i]];
+                if (val != null) uniqueSets[i].add(String(val));
+            }
+        });
+        /* Build option HTML in one string per select — avoids repeated DOM node creation */
         selects.forEach((select, idx) => {
+            if (idx >= n) return;
             const valorAtual = select.value;
-            const uniqueValues = new Set();
-            baseDados.forEach(d => {
-                let val = "";
-                if (colunas[idx] === 'idadeReal') val = calcularIdade(d.datM, d.datR);
-                else if (colunas[idx] === 'mpa1') val = (d.cg1/AREA).toFixed(2);
-                else if (colunas[idx] === 'mpa2') val = (d.cg2/AREA).toFixed(2);
-                else val = d[colunas[idx]];
-                if (val !== undefined && val !== null) uniqueValues.add(val.toString());
-            });
-            select.innerHTML = '<option value="">Todos</option>';
-            Array.from(uniqueValues).sort().forEach(val => {
-                const opt = document.createElement('option');
-                opt.value = val; opt.textContent = val;
-                if (val === valorAtual) opt.selected = true;
-                select.appendChild(opt);
-            });
+            const sorted = [...uniqueSets[idx]].sort();
+            let html = '<option value="">Todos</option>';
+            for (const val of sorted) {
+                const esc = escHtml(val);
+                html += `<option value="${esc}"${val === valorAtual ? ' selected' : ''}>${esc}</option>`;
+            }
+            select.innerHTML = html;
         });
     }
 
@@ -442,19 +472,30 @@
         document.getElementById('statTotal').innerText = dados.length;
         document.getElementById('statConsumoMedio').innerText = consumoMedio.toFixed(2) + " kg/m³";
         const ctx = document.getElementById('graficoAnalise').getContext('2d');
-        if (meuGrafico) meuGrafico.destroy();
-        meuGrafico = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: dados.map(d => d.nf),
-                datasets: [
-                    { label: 'CP1', data: dados.map(d => (d.cg1/AREA).toFixed(2)), backgroundColor: '#3182ce' },
-                    { label: 'CP2', data: dados.map(d => (d.cg2/AREA).toFixed(2)), backgroundColor: '#63b3ed' },
-                    { label: 'FCK', data: dados.map(d => d.fck), type: 'line', borderColor: '#e53e3e', pointRadius: 0, fill: false }
-                ]
-            },
-            options: { responsive: true, maintainAspectRatio: false }
-        });
+        const labels = dados.map(d => d.nf);
+        const cp1Data = dados.map(d => (d.cg1/AREA).toFixed(2));
+        const cp2Data = dados.map(d => (d.cg2/AREA).toFixed(2));
+        const fckData = dados.map(d => d.fck);
+        if (meuGrafico) {
+            meuGrafico.data.labels = labels;
+            meuGrafico.data.datasets[0].data = cp1Data;
+            meuGrafico.data.datasets[1].data = cp2Data;
+            meuGrafico.data.datasets[2].data = fckData;
+            meuGrafico.update('none');
+        } else {
+            meuGrafico = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [
+                        { label: 'CP1', data: cp1Data, backgroundColor: '#3182ce' },
+                        { label: 'CP2', data: cp2Data, backgroundColor: '#63b3ed' },
+                        { label: 'FCK', data: fckData, type: 'line', borderColor: '#e53e3e', pointRadius: 0, fill: false }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, animation: false }
+            });
+        }
     }
 
     function adicionarLinha() {
@@ -603,17 +644,17 @@
                 <td contenteditable="true" onblur="baseDadosXLS[${index}].nf=this.innerText;atualizarSelectsXLS()">${d.nf}</td>
                 <td class="col-contrato" contenteditable="true" onblur="baseDadosXLS[${index}].contrato=this.innerText;atualizarSelectsXLS()">${d.contrato}</td>
                 <td contenteditable="true" onblur="baseDadosXLS[${index}].cli=this.innerText;atualizarSelectsXLS()">${d.cli}</td>
-                <td contenteditable="true" onblur="baseDadosXLS[${index}].datM=this.innerText;renderTabelaXLS()">${d.datM}</td>
-                <td contenteditable="true" onblur="baseDadosXLS[${index}].datR=this.innerText;renderTabelaXLS()">${d.datR}</td>
+                <td contenteditable="true" onblur="baseDadosXLS[${index}].datM=this.innerText;atualizarIdadeCell(this);atualizarSelectsXLS();executarFiltroXLS()">${d.datM}</td>
+                <td contenteditable="true" onblur="baseDadosXLS[${index}].datR=this.innerText;atualizarIdadeCell(this);atualizarSelectsXLS();executarFiltroXLS()">${d.datR}</td>
                 <td style="font-weight:bold">${calcularIdade(d.datM,d.datR)}</td>
                 <td class="col-ruptura-ref" contenteditable="true" onblur="baseDadosXLS[${index}].idadeRelatorio=this.innerText;atualizarSelectsXLS()">${d.idadeRelatorio}</td>
                 <td contenteditable="true" onblur="baseDadosXLS[${index}].fck=this.innerText;executarFiltroXLS()">${d.fck}</td>
                 <td contenteditable="true" onblur="baseDadosXLS[${index}].consumo=this.innerText;atualizarSelectsXLS()">${d.consumo}</td>
                 <td contenteditable="true" onblur="baseDadosXLS[${index}].cp1=this.innerText;atualizarSelectsXLS()" class="cp1">${d.cp1}</td>
-                <td contenteditable="true" onblur="baseDadosXLS[${index}].cg1=parseFloat(this.innerText.replace(',','.'));renderTabelaXLS()" class="cp1">${d.cg1}</td>
+                <td contenteditable="true" onblur="baseDadosXLS[${index}].cg1=parseFloat(this.innerText.replace(',','.'));atualizarMpaCell(this,12);atualizarSelectsXLS();executarFiltroXLS()" class="cp1">${d.cg1}</td>
                 <td class="res-col cp1">${mpa1}</td>
                 <td contenteditable="true" onblur="baseDadosXLS[${index}].cp2=this.innerText;atualizarSelectsXLS()" class="cp2">${d.cp2}</td>
-                <td contenteditable="true" onblur="baseDadosXLS[${index}].cg2=parseFloat(this.innerText.replace(',','.'));renderTabelaXLS()" class="cp2">${d.cg2}</td>
+                <td contenteditable="true" onblur="baseDadosXLS[${index}].cg2=parseFloat(this.innerText.replace(',','.'));atualizarMpaCell(this,15);atualizarSelectsXLS();executarFiltroXLS()" class="cp2">${d.cg2}</td>
                 <td class="res-col cp2">${mpa2}</td>
                 <td class="col-peca" contenteditable="true" onblur="baseDadosXLS[${index}].pecaConcretada=this.innerText;atualizarSelectsXLS()">${d.pecaConcretada||''}</td>
                 <td class="col-controle" contenteditable="true" onblur="baseDadosXLS[${index}].controle=this.innerText;atualizarSelectsXLS()">${d.controle||''}</td>
@@ -630,24 +671,33 @@
         const selects = document.querySelectorAll('#tabelaXLS .filter-input-xls');
         /* 19 filterable columns (index 0-18); index 19 = actions, no filter */
         const colunas = ['filial','nf','contrato','cli','datM','datR','idadeReal','idadeRelatorio','fck','consumo','cp1','cg1','mpa1','cp2','cg2','mpa2','pecaConcretada','controle','id'];
+        const n = Math.min(selects.length, colunas.length);
+        const uniqueSets = Array.from({length: n}, () => new Set());
+        /* Single pass over data — collect unique values for all columns at once */
+        baseDadosXLS.forEach(d => {
+            const idadeReal = String(calcularIdade(d.datM, d.datR));
+            const mpa1 = d.cg1 > 0 ? (d.cg1/AREA).toFixed(2) : '0.00';
+            const mpa2 = d.cg2 > 0 ? (d.cg2/AREA).toFixed(2) : '0.00';
+            for (let i = 0; i < n; i++) {
+                let val;
+                if (colunas[i] === 'idadeReal') val = idadeReal;
+                else if (colunas[i] === 'mpa1') val = mpa1;
+                else if (colunas[i] === 'mpa2') val = mpa2;
+                else val = d[colunas[i]];
+                if (val != null) uniqueSets[i].add(String(val));
+            }
+        });
+        /* Build option HTML in one string per select — avoids repeated DOM node creation */
         selects.forEach((select, idx) => {
+            if (idx >= n) return;
             const valorAtual = select.value;
-            const uniqueValues = new Set();
-            baseDadosXLS.forEach(d => {
-                let val = "";
-                if (colunas[idx] === 'idadeReal') val = calcularIdade(d.datM, d.datR);
-                else if (colunas[idx] === 'mpa1') val = d.cg1 > 0 ? (d.cg1/AREA).toFixed(2) : '0.00';
-                else if (colunas[idx] === 'mpa2') val = d.cg2 > 0 ? (d.cg2/AREA).toFixed(2) : '0.00';
-                else val = d[colunas[idx]];
-                if (val !== undefined && val !== null) uniqueValues.add(val.toString());
-            });
-            select.innerHTML = '<option value="">Todos</option>';
-            Array.from(uniqueValues).sort().forEach(val => {
-                const opt = document.createElement('option');
-                opt.value = val; opt.textContent = val;
-                if (val === valorAtual) opt.selected = true;
-                select.appendChild(opt);
-            });
+            const sorted = [...uniqueSets[idx]].sort();
+            let html = '<option value="">Todos</option>';
+            for (const val of sorted) {
+                const esc = escHtml(val);
+                html += `<option value="${esc}"${val === valorAtual ? ' selected' : ''}>${esc}</option>`;
+            }
+            select.innerHTML = html;
         });
     }
 
@@ -691,19 +741,30 @@
         document.getElementById('statConsumoMedio2').innerText = consumoMedio.toFixed(2) + " kg/m³";
 
         const ctx = document.getElementById('graficoXLS').getContext('2d');
-        if (meuGraficoXLS) meuGraficoXLS.destroy();
-        meuGraficoXLS = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: dados.map((d, i) => d.nf || d.id || `#${i + 1}`),
-                datasets: [
-                    { label: 'CP1 (MPa)', data: dados.map(d => getMpa1(d).toFixed(2)), backgroundColor: '#3182ce' },
-                    { label: 'CP2 (MPa)', data: dados.map(d => getMpa2(d).toFixed(2)), backgroundColor: '#63b3ed' },
-                    { label: 'FCK', data: dados.map(d => d.fck), type: 'line', borderColor: '#e53e3e', pointRadius: 0, fill: false }
-                ]
-            },
-            options: { responsive: true, maintainAspectRatio: false }
-        });
+        const labels = dados.map((d, i) => d.nf || d.id || `#${i + 1}`);
+        const cp1Data = dados.map(d => getMpa1(d).toFixed(2));
+        const cp2Data = dados.map(d => getMpa2(d).toFixed(2));
+        const fckData = dados.map(d => d.fck);
+        if (meuGraficoXLS) {
+            meuGraficoXLS.data.labels = labels;
+            meuGraficoXLS.data.datasets[0].data = cp1Data;
+            meuGraficoXLS.data.datasets[1].data = cp2Data;
+            meuGraficoXLS.data.datasets[2].data = fckData;
+            meuGraficoXLS.update('none');
+        } else {
+            meuGraficoXLS = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [
+                        { label: 'CP1 (MPa)', data: cp1Data, backgroundColor: '#3182ce' },
+                        { label: 'CP2 (MPa)', data: cp2Data, backgroundColor: '#63b3ed' },
+                        { label: 'FCK', data: fckData, type: 'line', borderColor: '#e53e3e', pointRadius: 0, fill: false }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, animation: false }
+            });
+        }
     }
 
     /* ---- Manual insert ---- */
