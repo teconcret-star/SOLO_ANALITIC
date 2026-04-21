@@ -468,7 +468,7 @@
         const d1 = converterData(datM), d2 = converterData(datR);
         if (!d1 || !d2) return 0;
         const diff = Math.round((d2 - d1) / 86400000);
-        return diff >= 0 ? diff : 0;
+        return diff >= 0 ? diff + 56 : 0;
     }
     function formatExcelDate(v) {
         if (v instanceof Date) {
