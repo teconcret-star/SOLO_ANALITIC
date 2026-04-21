@@ -550,6 +550,7 @@
             renderTabela();
             e.target.value = "";
             if (totalIgnorados > 0) alert(`✅ ${totalImportados} registro(s) importado(s).\n⚠️ ${totalIgnorados} registro(s) ignorado(s) por já existirem no sistema.`);
+            else if (totalImportados > 0) alert(`✅ ${totalImportados} registro(s) importado(s) com sucesso.`);
         }
     });
 
@@ -934,8 +935,8 @@
         }
 
         if (added > 0) renderTabelaXLS();
-        else alert('Nenhuma linha válida encontrada.\nVerifique os cabeçalhos da planilha.');
-        if (skipped > 0) alert(`✅ ${added} registro(s) importado(s).\n⚠️ ${skipped} registro(s) ignorado(s) por já existirem no sistema.`);
+        if (added === 0 && skipped === 0) alert('Nenhuma linha válida encontrada.\nVerifique os cabeçalhos da planilha.');
+        else if (skipped > 0) alert(`✅ ${added} registro(s) importado(s).\n⚠️ ${skipped} registro(s) ignorado(s) por já existirem no sistema.`);
         e.target.value = "";
     });
 
