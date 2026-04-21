@@ -5,10 +5,19 @@
     <title>Solomix BI - Análise Filtrada</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; display: flex; height: 100vh; overflow: hidden; }
         .sidebar { width: 300px; background: #1a202c; color: white; padding: 20px; display: flex; flex-direction: column; box-shadow: 2px 0 10px rgba(0,0,0,0.2); }
-        .main { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; }
+        .main { flex: 1; padding: 20px 20px 20px 20px; overflow-y: auto; display: flex; flex-direction: column; }
+
+        /* Tab navigation */
+        .tab-nav { display: flex; gap: 6px; flex-shrink: 0; margin-bottom: 0; }
+        .tab-btn { padding: 10px 22px; border: none; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: bold; font-size: 13px; background: #cbd5e0; color: #4a5568; transition: background 0.2s; }
+        .tab-btn.active { background: #3182ce; color: white; }
+        .tab-content { display: none; flex-direction: column; flex: 1; padding-top: 15px; min-height: 0; }
+        .tab-content.active-tab { display: flex; }
+
         .dashboard-stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; margin-bottom: 20px; }
         .stat-card { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); text-align: center; border-top: 4px solid #3182ce; }
         .stat-val { display: block; font-size: 22px; font-weight: bold; color: #2d3748; }
@@ -19,11 +28,11 @@
         .btn-clear { background: #718096; color: white; margin-top: 10px; }
         .btn-clear:hover { background: #4a5568; }
         .btn-excel { background: #38a169; color: white; margin-top: auto; }
-        .btn-del { background: #e53e3e; color: white; padding: 5px 8px; border-radius: 4px; font-size: 10px; cursor: pointer; border:none; }
+        .btn-del { background: #e53e3e; color: white; padding: 5px 8px; border-radius: 4px; font-size: 10px; cursor: pointer; border: none; }
         .table-container { background: white; border-radius: 12px; overflow: auto; flex: 1; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         table { width: 100%; border-collapse: collapse; font-size: 11px; min-width: 1600px; }
-        th { background: #edf2f7; padding: 10px; border-bottom: 2px solid #cbd5e0; text-align: left; position: sticky; top: 0; z-index: 10; }
-        td { padding: 10px; border-bottom: 1px solid #e2e8f0; outline: none; }
+        th { background: #edf2f7; padding: 10px; border-bottom: 2px solid #cbd5e0; text-align: left; position: sticky; top: 0; z-index: 10; white-space: nowrap; }
+        td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; outline: none; }
         .filter-input { width: 100%; padding: 4px; margin-top: 5px; border: 1px solid #cbd5e0; border-radius: 4px; font-size: 10px; box-sizing: border-box; background: white; cursor: pointer; }
         .select-celula { width: 100%; border: 1px solid #e2e8f0; border-radius: 4px; background: white; font-family: inherit; font-size: inherit; font-weight: bold; cursor: pointer; color: #2d3748; padding: 2px; }
         .export-group { margin-top: auto; display: flex; flex-direction: column; gap: 5px; }
@@ -33,6 +42,9 @@
         .col-filial { background: #fff5f5; width: 130px; }
         .col-contrato { background: #e6fffa; font-weight: bold; color: #2c7a7b; }
         .col-ruptura-ref { background: #fefcbf; font-weight: bold; text-align: center; color: #b7791f; }
+        .col-peca { background: #faf5ff; color: #553c9a; }
+        .col-controle { background: #e8f5e9; color: #2e7d32; }
+        .sidebar-section { display: flex; flex-direction: column; flex: 1; }
         #modalFilial { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
         .modal-content { background: white; padding: 30px; border-radius: 12px; width: 350px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
         .modal-content select { width: 100%; padding: 10px; margin: 15px 0; border-radius: 6px; border: 1px solid #cbd5e0; font-size: 14px; }
@@ -63,79 +75,183 @@
 
 <div class="sidebar">
     <h2 style="color: #63b3ed; margin: 0 0 20px 0;">Solomix BI</h2>
-    <div style="background: #2d3748; padding: 15px; border-radius: 8px; text-align:center; border: 2px dashed #4a5568; margin-bottom: 15px; cursor:pointer;" onclick="document.getElementById('fileIn').click()">
-        <strong>📁 IMPORTAR RELATÓRIOS (PDF / EXCEL)</strong>
-        <input type="file" id="fileIn" style="display:none" accept=".pdf, .csv, .json" multiple>
+
+    <!-- Sidebar Tab 1 -->
+    <div id="sidebar-tab1" class="sidebar-section">
+        <div style="background:#2d3748;padding:15px;border-radius:8px;text-align:center;border:2px dashed #4a5568;margin-bottom:15px;cursor:pointer;" onclick="document.getElementById('fileIn').click()">
+            <strong>📁 IMPORTAR RELATÓRIOS (PDF / EXCEL)</strong>
+            <input type="file" id="fileIn" style="display:none" accept=".pdf,.csv,.json" multiple>
+        </div>
+        <button class="btn btn-clear" onclick="limparFiltros()">🔄 LIMPAR FILTROS</button>
+        <div class="export-group">
+            <span class="export-label">OPÇÕES DE EXPORTAÇÃO</span>
+            <button class="btn btn-excel" onclick="exportar('csv')">📥 EXPORTAR EXCEL (CSV)</button>
+            <button class="btn" style="background:#4a5568;color:white;" onclick="exportar('json')">💾 SALVAR BACKUP (JSON)</button>
+        </div>
     </div>
-    <button class="btn btn-clear" onclick="limparFiltros()">🔄 LIMPAR FILTROS</button>
-    <div class="export-group">
-        <span class="export-label">OPÇÕES DE EXPORTAÇÃO</span>
-        <button class="btn btn-excel" onclick="exportar('csv')">📥 EXPORTAR EXCEL (CSV)</button>
-        <button class="btn" style="background: #4a5568; color: white;" onclick="exportar('json')">💾 SALVAR BACKUP (JSON)</button>
+
+    <!-- Sidebar Tab 2 -->
+    <div id="sidebar-tab2" class="sidebar-section" style="display:none">
+        <div style="background:#2d3748;padding:15px;border-radius:8px;text-align:center;border:2px dashed #4a5568;margin-bottom:15px;cursor:pointer;" onclick="document.getElementById('fileInXLS').click()">
+            <strong>📊 IMPORTAR PLANILHA<br>(XLSX / XLS / CSV)</strong>
+            <input type="file" id="fileInXLS" style="display:none" accept=".xlsx,.xls,.csv,.json">
+        </div>
+        <button class="btn btn-clear" onclick="limparFiltrosXLS()">🔄 LIMPAR FILTROS</button>
+        <div class="export-group">
+            <span class="export-label">OPÇÕES DE EXPORTAÇÃO</span>
+            <button class="btn btn-excel" onclick="exportarXLS('csv')">📥 EXPORTAR EXCEL (CSV)</button>
+            <button class="btn" style="background:#4a5568;color:white;" onclick="exportarXLS('json')">💾 SALVAR BACKUP (JSON)</button>
+        </div>
     </div>
 </div>
 
 <div class="main">
-    <div class="dashboard-stats">
-        <div class="stat-card"><span class="stat-label">Resistência Média</span><span id="statMedia" class="stat-val">0.00 MPa</span></div>
-        <div class="stat-card"><span class="stat-label">Desvio Padrão (S)</span><span id="statDesvio" class="stat-val">0.00</span></div>
-        <div class="stat-card"><span class="stat-label">Coef. Variação (CV)</span><span id="statCV" class="stat-val">0.00%</span></div>
-        <div class="stat-card"><span class="stat-label">Amostras Filtradas</span><span id="statTotal" class="stat-val">0</span></div>
-        <!-- NOVO CARD: Consumo Médio de Cimento -->
-        <div class="stat-card"><span class="stat-label">Consumo Médio Cimento</span><span id="statConsumoMedio" class="stat-val">0.00 kg/m³</span></div>
+    <div class="tab-nav">
+        <button class="tab-btn active" data-tab="tab1" onclick="switchTab('tab1')">📄 PDF / Relatórios</button>
+        <button class="tab-btn" data-tab="tab2" onclick="switchTab('tab2')">📊 Planilha / Controle</button>
     </div>
 
-    <div class="chart-container"><canvas id="graficoAnalise"></canvas></div>
-
-    <div style="display: flex; justify-content: space-between; align-items: center;">
-        <button class="btn btn-add" onclick="adicionarLinha()">+ Inserir Manualmente</button>
+    <!-- ===== TAB 1 ===== -->
+    <div id="tab1-content" class="tab-content active-tab">
+        <div class="dashboard-stats">
+            <div class="stat-card"><span class="stat-label">Resistência Média</span><span id="statMedia" class="stat-val">0.00 MPa</span></div>
+            <div class="stat-card"><span class="stat-label">Desvio Padrão (S)</span><span id="statDesvio" class="stat-val">0.00</span></div>
+            <div class="stat-card"><span class="stat-label">Coef. Variação (CV)</span><span id="statCV" class="stat-val">0.00%</span></div>
+            <div class="stat-card"><span class="stat-label">Amostras Filtradas</span><span id="statTotal" class="stat-val">0</span></div>
+            <div class="stat-card"><span class="stat-label">Consumo Médio Cimento</span><span id="statConsumoMedio" class="stat-val">0.00 kg/m³</span></div>
+        </div>
+        <div class="chart-container"><canvas id="graficoAnalise"></canvas></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+            <button class="btn btn-add" onclick="adicionarLinha()">+ Inserir Manualmente</button>
+        </div>
+        <div class="table-container">
+            <table id="tabelaMain">
+                <thead>
+                    <tr>
+                        <th class="col-filial">Filial<br><select class="filter-input" onchange="executarFiltro()"><option value="">Todos</option></select></th>
+                        <th>NF<br><select class="filter-input" onchange="executarFiltro()"><option value="">Todos</option></select></th>
+                        <th class="col-contrato">Contrato<br><select class="filter-input" onchange="executarFiltro()"><option value="">Todos</option></select></th>
+                        <th>Cliente<br><select class="filter-input" onchange="executarFiltro()"><option value="">Todos</option></select></th>
+                        <th>Moldagem<br><select class="filter-input" onchange="executarFiltro()"><option value="">Todos</option></select></th>
+                        <th>Data Rupt.<br><select class="filter-input" onchange="executarFiltro()"><option value="">Todos</option></select></th>
+                        <th>Idade Real<br><select class="filter-input" onchange="executarFiltro()"><option value="">Todos</option></select></th>
+                        <th style="background:#fefcbf">Ruptura (Idade)<br><select class="filter-input" onchange="executarFiltro()"><option value="">Todos</option></select></th>
+                        <th>FCK Proj.<br><select class="filter-input" onchange="executarFiltro()"><option value="">Todos</option></select></th>
+                        <th>Consumo kg/m³<br><select class="filter-input" onchange="executarFiltro()"><option value="">Todos</option></select></th>
+                        <th class="cp1">CP 1<br><select class="filter-input" onchange="executarFiltro()"><option value="">Todos</option></select></th>
+                        <th class="cp1">Carga 1(kN)<br><select class="filter-input" onchange="executarFiltro()"><option value="">Todos</option></select></th>
+                        <th class="cp1">MPa 1<br><select class="filter-input" onchange="executarFiltro()"><option value="">Todos</option></select></th>
+                        <th class="cp2">CP 2<br><select class="filter-input" onchange="executarFiltro()"><option value="">Todos</option></select></th>
+                        <th class="cp2">Carga 2(kN)<br><select class="filter-input" onchange="executarFiltro()"><option value="">Todos</option></select></th>
+                        <th class="cp2">MPa 2<br><select class="filter-input" onchange="executarFiltro()"><option value="">Todos</option></select></th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="corpoTabela"></tbody>
+            </table>
+        </div>
     </div>
 
-    <div class="table-container">
-        <table id="tabelaMain">
-            <thead>
-                <tr>
-                    <th class="col-filial">Filial<br><select class="filter-input" onchange="executarFiltro()"><option value="">Todos</option></select></th>
-                    <th>NF<br><select class="filter-input" onchange="executarFiltro()"><option value="">Todos</option></select></th>
-                    <th class="col-contrato">Contrato<br><select class="filter-input" onchange="executarFiltro()"><option value="">Todos</option></select></th>
-                    <th>Cliente<br><select class="filter-input" onchange="executarFiltro()"><option value="">Todos</option></select></th>
-                    <th>Moldagem<br><select class="filter-input" onchange="executarFiltro()"><option value="">Todos</option></select></th>
-                    <th>Data Rupt.<br><select class="filter-input" onchange="executarFiltro()"><option value="">Todos</option></select></th>
-                    <th>Idade Real<br><select class="filter-input" onchange="executarFiltro()"><option value="">Todos</option></select></th>
-                    <th style="background:#fefcbf">Ruptura (Idade)<br><select class="filter-input" onchange="executarFiltro()"><option value="">Todos</option></select></th>
-                    <th>FCK Proj.<br><select class="filter-input" onchange="executarFiltro()"><option value="">Todos</option></select></th>
-                    <th>Consumo kg/m³<br><select class="filter-input" onchange="executarFiltro()"><option value="">Todos</option></select></th>
-                    <th class="cp1">CP 1<br><select class="filter-input" onchange="executarFiltro()"><option value="">Todos</option></select></th>
-                    <th class="cp1">Carga 1(kN)<br><select class="filter-input" onchange="executarFiltro()"><option value="">Todos</option></select></th>
-                    <th class="cp1">MPa 1<br><select class="filter-input" onchange="executarFiltro()"><option value="">Todos</option></select></th>
-                    <th class="cp2">CP 2<br><select class="filter-input" onchange="executarFiltro()"><option value="">Todos</option></select></th>
-                    <th class="cp2">Carga 2(kN)<br><select class="filter-input" onchange="executarFiltro()"><option value="">Todos</option></select></th>
-                    <th class="cp2">MPa 2<br><select class="filter-input" onchange="executarFiltro()"><option value="">Todos</option></select></th>
-                    <th>Ações</th>
-                </tr>
-            </thead>
-            <tbody id="corpoTabela"></tbody>
-        </table>
+    <!-- ===== TAB 2 ===== -->
+    <div id="tab2-content" class="tab-content">
+        <div class="dashboard-stats">
+            <div class="stat-card"><span class="stat-label">Resistência Média</span><span id="statMedia2" class="stat-val">0.00 MPa</span></div>
+            <div class="stat-card"><span class="stat-label">Desvio Padrão (S)</span><span id="statDesvio2" class="stat-val">0.00</span></div>
+            <div class="stat-card"><span class="stat-label">Coef. Variação (CV)</span><span id="statCV2" class="stat-val">0.00%</span></div>
+            <div class="stat-card"><span class="stat-label">Amostras Filtradas</span><span id="statTotal2" class="stat-val">0</span></div>
+            <div class="stat-card"><span class="stat-label">Consumo Médio Cimento</span><span id="statConsumoMedio2" class="stat-val">0.00 kg/m³</span></div>
+        </div>
+        <div class="chart-container"><canvas id="graficoXLS"></canvas></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+            <button class="btn btn-add" onclick="adicionarLinhaXLS()">+ Inserir Manualmente</button>
+        </div>
+        <div class="table-container">
+            <table id="tabelaXLS">
+                <thead>
+                    <tr>
+                        <th class="col-filial">Filial<br><select class="filter-input-xls" onchange="executarFiltroXLS()"><option value="">Todos</option></select></th>
+                        <th>NF<br><select class="filter-input-xls" onchange="executarFiltroXLS()"><option value="">Todos</option></select></th>
+                        <th class="col-contrato">Contrato<br><select class="filter-input-xls" onchange="executarFiltroXLS()"><option value="">Todos</option></select></th>
+                        <th>Cliente<br><select class="filter-input-xls" onchange="executarFiltroXLS()"><option value="">Todos</option></select></th>
+                        <th>Moldagem<br><select class="filter-input-xls" onchange="executarFiltroXLS()"><option value="">Todos</option></select></th>
+                        <th>Data Rupt.<br><select class="filter-input-xls" onchange="executarFiltroXLS()"><option value="">Todos</option></select></th>
+                        <th>Idade Real<br><select class="filter-input-xls" onchange="executarFiltroXLS()"><option value="">Todos</option></select></th>
+                        <th style="background:#fefcbf">Rupt. Idade<br><select class="filter-input-xls" onchange="executarFiltroXLS()"><option value="">Todos</option></select></th>
+                        <th>FCK<br><select class="filter-input-xls" onchange="executarFiltroXLS()"><option value="">Todos</option></select></th>
+                        <th>Consumo kg/m³<br><select class="filter-input-xls" onchange="executarFiltroXLS()"><option value="">Todos</option></select></th>
+                        <th class="cp1">CP 1<br><select class="filter-input-xls" onchange="executarFiltroXLS()"><option value="">Todos</option></select></th>
+                        <th class="cp1">Carga 1(kN)<br><select class="filter-input-xls" onchange="executarFiltroXLS()"><option value="">Todos</option></select></th>
+                        <th class="cp1">MPa 1<br><select class="filter-input-xls" onchange="executarFiltroXLS()"><option value="">Todos</option></select></th>
+                        <th class="cp2">CP 2<br><select class="filter-input-xls" onchange="executarFiltroXLS()"><option value="">Todos</option></select></th>
+                        <th class="cp2">Carga 2(kN)<br><select class="filter-input-xls" onchange="executarFiltroXLS()"><option value="">Todos</option></select></th>
+                        <th class="cp2">MPa 2<br><select class="filter-input-xls" onchange="executarFiltroXLS()"><option value="">Todos</option></select></th>
+                        <th class="col-peca">Peça Concretada<br><select class="filter-input-xls" onchange="executarFiltroXLS()"><option value="">Todos</option></select></th>
+                        <th class="col-controle">Controle<br><select class="filter-input-xls" onchange="executarFiltroXLS()"><option value="">Todos</option></select></th>
+                        <th>ID<br><select class="filter-input-xls" onchange="executarFiltroXLS()"><option value="">Todos</option></select></th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="corpoTabelaXLS"></tbody>
+            </table>
+        </div>
     </div>
 </div>
 
 <script>
+    /* ===== SHARED CONSTANTS ===== */
     const AREA = 78.54;
-    let baseDados = [];
-    let meuGrafico = null;
-    let arquivosPendentes = null;
-    const LISTA_FILIAIS = ["DIVINOPOLIS", "ABAETE", "N.SERRANA", "NOVA SERRANA", "BETIM", "UBERLANDIA", "ITATIAIUÇU", "ITAUNA", "B.DESPACHO", "IGARAPE", "MANHUACU", "51"];
+    const LISTA_FILIAIS = ["DIVINOPOLIS","ABAETE","N.SERRANA","NOVA SERRANA","BETIM","UBERLANDIA","ITATIAIUÇU","ITAUNA","B.DESPACHO","IGARAPE","MANHUACU","51"];
     const pdfjsLib = window['pdfjs-dist/build/pdf'];
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
+    /* ===== SHARED UTILITIES ===== */
+    function converterData(str) {
+        if (!str) return null;
+        const p = str.match(/(\d{2})\/(\d{2})\/(\d{2,4})/);
+        if (!p) return null;
+        let ano = p[3]; if (ano.length === 2) ano = "20" + ano;
+        return new Date(ano, p[2] - 1, p[1]);
+    }
+    function calcularIdade(datM, datR) {
+        const d1 = converterData(datM), d2 = converterData(datR);
+        if (!d1 || !d2) return 0;
+        const diff = Math.round((d2 - d1) / 86400000);
+        return diff >= 0 ? diff : 0;
+    }
+    function formatExcelDate(v) {
+        if (v instanceof Date) {
+            const d = String(v.getDate()).padStart(2,'0');
+            const m = String(v.getMonth()+1).padStart(2,'0');
+            return `${d}/${m}/${v.getFullYear()}`;
+        }
+        return String(v).trim();
+    }
+
+    /* ===== TAB SWITCHING ===== */
+    function switchTab(tab) {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active-tab'));
+        document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+        document.getElementById(tab + '-content').classList.add('active-tab');
+        document.getElementById('sidebar-tab1').style.display = tab === 'tab1' ? 'flex' : 'none';
+        document.getElementById('sidebar-tab2').style.display = tab === 'tab2' ? 'flex' : 'none';
+    }
+
+    /* ==========================================================
+       TAB 1  –  PDF / Relatórios (lógica original, inalterada)
+       ========================================================== */
+    let baseDados = [];
+    let meuGrafico = null;
+    let arquivosPendentes = null;
+
     document.getElementById('fileIn').addEventListener('change', async (e) => {
         const files = e.target.files;
-        if (files.length === 0) return;
+        if (!files.length) return;
         let possuiPDF = false;
         for (let file of files) {
-            const extensao = file.name.split('.').pop().toLowerCase();
-            if (extensao === 'pdf') possuiPDF = true;
-            else if (extensao === 'csv' || extensao === 'json') await processarArquivoTexto(file, extensao);
+            const ext = file.name.split('.').pop().toLowerCase();
+            if (ext === 'pdf') possuiPDF = true;
+            else if (ext === 'csv' || ext === 'json') await processarArquivoTexto(file, ext);
         }
         if (possuiPDF) {
             arquivosPendentes = Array.from(files).filter(f => f.name.toLowerCase().endsWith('.pdf'));
@@ -152,39 +268,17 @@
             reader.onload = (e) => {
                 const conteudo = e.target.result;
                 if (tipo === 'json') {
-                    try { 
-                        baseDados = baseDados.concat(JSON.parse(conteudo)); 
-                    } catch(err) { 
-                        console.error(err); 
-                    }
-                }
-                else if (tipo === 'csv') {
+                    try { baseDados = baseDados.concat(JSON.parse(conteudo)); } catch(err) { console.error(err); }
+                } else if (tipo === 'csv') {
                     const linhas = conteudo.split('\n');
                     for (let i = 1; i < linhas.length; i++) {
                         if (!linhas[i].trim()) continue;
                         const col = linhas[i].split(';');
-
-                        // CSV gerado por exportar('csv') tem 16 colunas
-                        // Filial;NF;Contrato;Cliente;Moldagem;Data Rupt;Idade Real;Ruptura(Ref);
-                        // FCK;Consumo;CP1;Carga1;MPa1;CP2;Carga2;MPa2
                         if (col.length >= 16) {
                             baseDados.push({
-                                filial: col[0].replace(/^\ufeff/, ""),
-                                nf: col[1],
-                                contrato: col[2],
-                                cli: col[3],
-                                datM: col[4],           // Moldagem
-                                datR: col[5],           // Data Rupt
-                                // col[6] = Idade Real (recalculada pela função calcularIdade)
-                                idadeRelatorio: col[7], // Ruptura(Ref)
-                                fck: col[8],
-                                consumo: col[9],
-                                cp1: col[10],
-                                cg1: parseFloat(col[11]) || 0, // Carga1
-                                // col[12] = MPa1 (calculado pela UI)
-                                cp2: col[13],
-                                cg2: parseFloat(col[14]) || 0  // Carga2
-                                // col[15] = MPa2 (calculado pela UI)
+                                filial: col[0].replace(/^\ufeff/, ""), nf: col[1], contrato: col[2], cli: col[3],
+                                datM: col[4], datR: col[5], idadeRelatorio: col[7], fck: col[8], consumo: col[9],
+                                cp1: col[10], cg1: parseFloat(col[11]) || 0, cp2: col[13], cg2: parseFloat(col[14]) || 0
                             });
                         }
                     }
@@ -200,7 +294,7 @@
         document.getElementById('modalFilial').style.display = 'none';
         for (let f of arquivosPendentes) {
             const doc = await pdfjsLib.getDocument(await f.arrayBuffer()).promise;
-            for (let i=1; i<=doc.numPages; i++) {
+            for (let i = 1; i <= doc.numPages; i++) {
                 const pg = await doc.getPage(i);
                 const content = await pg.getTextContent();
                 const lines = sortLines(content.items);
@@ -211,18 +305,13 @@
         document.getElementById('fileIn').value = "";
     }
 
-    // Melhora a ordenação das linhas com tolerância de 3 pixels
     function sortLines(items) {
-        const sorted = items.sort((a, b) => b.transform[5] - a.transform[5]);
-        const lines = [];
-        let curLine = [];
-        let curY = sorted.length ? sorted[0].transform[5] : 0;
-        
+        const sorted = items.sort((a,b) => b.transform[5] - a.transform[5]);
+        const lines = []; let curLine = []; let curY = sorted.length ? sorted[0].transform[5] : 0;
         sorted.forEach(it => {
             if (Math.abs(it.transform[5] - curY) > 3) {
                 lines.push(curLine.sort((a,b) => a.x - b.x).map(i => i.str).join("  "));
-                curLine = [];
-                curY = it.transform[5];
+                curLine = []; curY = it.transform[5];
             }
             curLine.push({ x: it.transform[4], str: it.str });
         });
@@ -230,72 +319,37 @@
         return lines;
     }
 
-    function converterData(str) {
-        if(!str) return null;
-        const partes = str.match(/(\d{2})\/(\d{2})\/(\d{2,4})/);
-        if(!partes) return null;
-        let ano = partes[3];
-        if(ano.length === 2) ano = "20" + ano;
-        return new Date(ano, partes[2] - 1, partes[1]);
-    }
-
-    function calcularIdade(dataM, dataR) {
-        const d1 = converterData(dataM);
-        const d2 = converterData(dataR);
-        if(!d1 || !d2) return 0;
-        const diff = Math.round((d2 - d1) / (1000 * 60 * 60 * 24));
-        return diff >= 0 ? diff : 0;
-    }
-
     function extract(lns, filial) {
-        for (let i=0; i<lns.length; i++) {
-            // Identifica início da amostra por Certificado (ex: 5/25)
+        for (let i = 0; i < lns.length; i++) {
             if (lns[i].match(/\d{1,6}\/2[456]/)) {
-                
                 let todasAsDatas = lns[i].match(/(\d{2}\/\d{2}\/\d{2,4})/g) || [];
                 const nfMatch = lns[i].match(/(\d{2}\.00)\s+(\d{3,8})/) || lns[i].match(/(\d{3,8})\s+(\d{3}\/)/);
                 let nf = nfMatch ? (nfMatch[2] || nfMatch[1]) : (lns[i].match(/^\d{1,6}\/2[456]/)?.[0] || "---");
-                
                 const cps = lns[i].match(/\b([46]\d{4,6}|[1-3]-\d{4,6}|CP\d+)\b/g);
                 const contratoMatch = lns[i].match(/(999\/[\d\.-]+)/) || lns[i].match(/(\d{3}\/[\d\.-]+)/);
                 let contrato = contratoMatch ? contratoMatch[1] : "---";
-                
                 let cli = "---";
-                if (contratoMatch) {
-                    let partes = lns[i].split(contrato);
-                    if (partes.length > 1) cli = partes[1].trim().replace(/\d{4,}/g, "").trim();
-                }
-
+                if (contratoMatch) { let partes = lns[i].split(contrato); if (partes.length > 1) cli = partes[1].trim().replace(/\d{4,}/g,"").trim(); }
                 let idadeRelatorio = "---";
                 const rupturaMatch = lns[i].match(/\s+(\d{1,2})\s+\d{2}\.00/);
-                if(rupturaMatch) idadeRelatorio = rupturaMatch[1];
-
-                // --- LÓGICA DE CARGA REFINADA (IMAGEM 1) ---
+                if (rupturaMatch) idadeRelatorio = rupturaMatch[1];
                 let cgs = [0, 0];
-                for (let j = 1; j <= 4; j++) { // Varre 4 linhas abaixo procurando "Carga"
-                    if (lns[i + j]) {
-                        let linhaTxt = lns[i + j];
-                        let matchCargaLiteral = linhaTxt.match(/carga:?/i);
+                for (let j = 1; j <= 4; j++) {
+                    if (lns[i+j]) {
+                        let linhaTxt = lns[i+j]; let matchCargaLiteral = linhaTxt.match(/carga:?/i);
                         if (matchCargaLiteral) {
-                            // Busca números de 4 dígitos APÓS a palavra carga na mesma linha
                             let parteNumerica = linhaTxt.substring(matchCargaLiteral.index + matchCargaLiteral[0].length);
                             let matches = parteNumerica.match(/\d{4}/g);
-                            if (matches) {
-                                cgs[0] = parseFloat(matches[0]);
-                                if (matches.length > 1) cgs[1] = parseFloat(matches[1]);
-                                break;
-                            }
+                            if (matches) { cgs[0] = parseFloat(matches[0]); if (matches.length > 1) cgs[1] = parseFloat(matches[1]); break; }
                         }
                     }
                 }
-
                 baseDados.push({
-                    filial: filial, nf: nf, contrato: contrato, cli: cli, 
+                    filial, nf, contrato, cli,
                     datM: todasAsDatas[0] || "---", datR: todasAsDatas[1] || "---",
-                    fck: lns[i].match(/(\d{2}\.00)/)?.[1] || "30.00", consumo: "0", 
-                    cp1: cps ? cps[0] : "-", cg1: cgs[0],
-                    cp2: cps ? cps[1] : "-", cg2: cgs[1],
-                    idadeRelatorio: idadeRelatorio 
+                    fck: lns[i].match(/(\d{2}\.00)/)?.[1] || "30.00", consumo: "0",
+                    cp1: cps ? cps[0] : "-", cg1: cgs[0], cp2: cps ? cps[1] : "-", cg2: cgs[1],
+                    idadeRelatorio
                 });
             }
         }
@@ -304,24 +358,24 @@
     function renderTabela() {
         const tbody = document.getElementById('corpoTabela');
         tbody.innerHTML = baseDados.map((d, index) => {
-            const optionsFilial = LISTA_FILIAIS.map(f => `<option value="${f}" ${f === d.filial ? 'selected' : ''}>${f}</option>`).join('');
+            const optionsFilial = LISTA_FILIAIS.map(f => `<option value="${f}" ${f===d.filial?'selected':''}>${f}</option>`).join('');
             return `
             <tr data-index="${index}">
-                <td class="col-filial"><select class="select-celula" onchange="baseDados[${index}].filial=this.value; atualizarSelects(); executarFiltro(true);">${optionsFilial}</select></td>
-                <td contenteditable="true" onblur="baseDados[${index}].nf=this.innerText; atualizarSelects()">${d.nf}</td>
-                <td class="col-contrato" contenteditable="true" onblur="baseDados[${index}].contrato=this.innerText; atualizarSelects()">${d.contrato}</td>
-                <td contenteditable="true" onblur="baseDados[${index}].cli=this.innerText; atualizarSelects()">${d.cli}</td>
-                <td contenteditable="true" onblur="baseDados[${index}].datM=this.innerText; renderTabela()">${d.datM}</td>
-                <td contenteditable="true" onblur="baseDados[${index}].datR=this.innerText; renderTabela()">${d.datR}</td>
-                <td style="font-weight:bold">${calcularIdade(d.datM, d.datR)}</td>
-                <td class="col-ruptura-ref" contenteditable="true" onblur="baseDados[${index}].idadeRelatorio=this.innerText; atualizarSelects()">${d.idadeRelatorio}</td>
-                <td contenteditable="true" onblur="baseDados[${index}].fck=this.innerText; executarFiltro()">${d.fck}</td>
-                <td contenteditable="true" onblur="baseDados[${index}].consumo=this.innerText; atualizarSelects()">${d.consumo}</td>
-                <td contenteditable="true" onblur="baseDados[${index}].cp1=this.innerText; atualizarSelects()" class="cp1">${d.cp1}</td>
-                <td contenteditable="true" onblur="baseDados[${index}].cg1=parseFloat(this.innerText.replace(',','.')); renderTabela()" class="cp1">${d.cg1}</td>
+                <td class="col-filial"><select class="select-celula" onchange="baseDados[${index}].filial=this.value;atualizarSelects();executarFiltro(true);">${optionsFilial}</select></td>
+                <td contenteditable="true" onblur="baseDados[${index}].nf=this.innerText;atualizarSelects()">${d.nf}</td>
+                <td class="col-contrato" contenteditable="true" onblur="baseDados[${index}].contrato=this.innerText;atualizarSelects()">${d.contrato}</td>
+                <td contenteditable="true" onblur="baseDados[${index}].cli=this.innerText;atualizarSelects()">${d.cli}</td>
+                <td contenteditable="true" onblur="baseDados[${index}].datM=this.innerText;renderTabela()">${d.datM}</td>
+                <td contenteditable="true" onblur="baseDados[${index}].datR=this.innerText;renderTabela()">${d.datR}</td>
+                <td style="font-weight:bold">${calcularIdade(d.datM,d.datR)}</td>
+                <td class="col-ruptura-ref" contenteditable="true" onblur="baseDados[${index}].idadeRelatorio=this.innerText;atualizarSelects()">${d.idadeRelatorio}</td>
+                <td contenteditable="true" onblur="baseDados[${index}].fck=this.innerText;executarFiltro()">${d.fck}</td>
+                <td contenteditable="true" onblur="baseDados[${index}].consumo=this.innerText;atualizarSelects()">${d.consumo}</td>
+                <td contenteditable="true" onblur="baseDados[${index}].cp1=this.innerText;atualizarSelects()" class="cp1">${d.cp1}</td>
+                <td contenteditable="true" onblur="baseDados[${index}].cg1=parseFloat(this.innerText.replace(',','.'));renderTabela()" class="cp1">${d.cg1}</td>
                 <td class="res-col cp1">${(d.cg1/AREA).toFixed(2)}</td>
-                <td contenteditable="true" onblur="baseDados[${index}].cp2=this.innerText; atualizarSelects()" class="cp2">${d.cp2}</td>
-                <td contenteditable="true" onblur="baseDados[${index}].cg2=parseFloat(this.innerText.replace(',','.')); renderTabela()" class="cp2">${d.cg2}</td>
+                <td contenteditable="true" onblur="baseDados[${index}].cp2=this.innerText;atualizarSelects()" class="cp2">${d.cp2}</td>
+                <td contenteditable="true" onblur="baseDados[${index}].cg2=parseFloat(this.innerText.replace(',','.'));renderTabela()" class="cp2">${d.cg2}</td>
                 <td class="res-col cp2">${(d.cg2/AREA).toFixed(2)}</td>
                 <td><button class="btn-del" onclick="if(confirm('Excluir?')){baseDados.splice(${index},1);renderTabela();}">X</button></td>
             </tr>`;
@@ -331,8 +385,8 @@
     }
 
     function atualizarSelects() {
-        const selects = document.querySelectorAll('.filter-input');
-        const colunas = ['filial', 'nf', 'contrato', 'cli', 'datM', 'datR', 'idadeReal', 'idadeRelatorio', 'fck', 'consumo', 'cp1', 'cg1', 'mpa1', 'cp2', 'cg2', 'mpa2'];
+        const selects = document.querySelectorAll('#tabelaMain .filter-input');
+        const colunas = ['filial','nf','contrato','cli','datM','datR','idadeReal','idadeRelatorio','fck','consumo','cp1','cg1','mpa1','cp2','cg2','mpa2'];
         selects.forEach((select, idx) => {
             const valorAtual = select.value;
             const uniqueValues = new Set();
@@ -348,53 +402,45 @@
             Array.from(uniqueValues).sort().forEach(val => {
                 const opt = document.createElement('option');
                 opt.value = val; opt.textContent = val;
-                if(val === valorAtual) opt.selected = true;
+                if (val === valorAtual) opt.selected = true;
                 select.appendChild(opt);
             });
         });
     }
 
     function executarFiltro(apenasGrafico = false) {
-        const selects = document.querySelectorAll('.filter-input');
+        const selects = document.querySelectorAll('#tabelaMain .filter-input');
         const rows = document.querySelectorAll('#corpoTabela tr');
         let dadosFiltrados = [];
         rows.forEach(row => {
             let visivel = true;
             selects.forEach((s, idx) => {
                 if (!s.value) return;
-                let txt = (idx === 0) ? row.cells[idx].querySelector('select').value : row.cells[idx].innerText.trim();
+                let txt = idx === 0 ? row.cells[idx].querySelector('select').value : row.cells[idx].innerText.trim();
                 if (txt !== s.value) visivel = false;
             });
-            if(!apenasGrafico) row.style.display = visivel ? "" : "none";
+            if (!apenasGrafico) row.style.display = visivel ? "" : "none";
             if (visivel) dadosFiltrados.push(baseDados[row.getAttribute('data-index')]);
         });
         atualizarAnaliseGrafica(dadosFiltrados);
     }
 
     function limparFiltros() {
-        document.querySelectorAll('.filter-input').forEach(s => s.value = "");
+        document.querySelectorAll('#tabelaMain .filter-input').forEach(s => s.value = "");
         executarFiltro();
     }
 
     function atualizarAnaliseGrafica(dados) {
         const resTotais = dados.flatMap(d => [d.cg1/AREA, d.cg2/AREA]).filter(v => v > 1);
-        const media = resTotais.length ? resTotais.reduce((a,b)=>a+b,0) / resTotais.length : 0;
+        const media = resTotais.length ? resTotais.reduce((a,b)=>a+b,0)/resTotais.length : 0;
         const desvio = resTotais.length > 1 ? Math.sqrt(resTotais.reduce((a,b)=>a+Math.pow(b-media,2),0)/(resTotais.length-1)) : 0;
-
-        // NOVO CÁLCULO: consumo médio de cimento (considerando apenas valores numéricos > 0)
-        const consumosNumericos = dados
-            .map(d => parseFloat(String(d.consumo).replace(',', '.')))
-            .filter(v => !isNaN(v) && v > 0);
-        const consumoMedio = consumosNumericos.length
-            ? consumosNumericos.reduce((a, b) => a + b, 0) / consumosNumericos.length
-            : 0;
-
+        const consumosNumericos = dados.map(d => parseFloat(String(d.consumo).replace(',','.'))).filter(v => !isNaN(v) && v > 0);
+        const consumoMedio = consumosNumericos.length ? consumosNumericos.reduce((a,b)=>a+b,0)/consumosNumericos.length : 0;
         document.getElementById('statMedia').innerText = media.toFixed(2) + " MPa";
         document.getElementById('statDesvio').innerText = desvio.toFixed(2);
         document.getElementById('statCV').innerText = (media > 0 ? (desvio/media*100).toFixed(2) : 0) + "%";
         document.getElementById('statTotal').innerText = dados.length;
         document.getElementById('statConsumoMedio').innerText = consumoMedio.toFixed(2) + " kg/m³";
-
         const ctx = document.getElementById('graficoAnalise').getContext('2d');
         if (meuGrafico) meuGrafico.destroy();
         meuGrafico = new Chart(ctx, {
@@ -404,7 +450,7 @@
                 datasets: [
                     { label: 'CP1', data: dados.map(d => (d.cg1/AREA).toFixed(2)), backgroundColor: '#3182ce' },
                     { label: 'CP2', data: dados.map(d => (d.cg2/AREA).toFixed(2)), backgroundColor: '#63b3ed' },
-                    { label: 'FCK', data: dados.map(d=>d.fck), type:'line', borderColor:'#e53e3e', pointRadius:0, fill:false }
+                    { label: 'FCK', data: dados.map(d => d.fck), type: 'line', borderColor: '#e53e3e', pointRadius: 0, fill: false }
                 ]
             },
             options: { responsive: true, maintainAspectRatio: false }
@@ -412,25 +458,282 @@
     }
 
     function adicionarLinha() {
-        baseDados.unshift({ filial: "DIVINOPOLIS", nf: "000", contrato: "999/0", cli: "Novo", datM: "01/01/2025", datR: "29/01/2025", fck: "30.00", consumo: "0", cp1: "-", cg1: 0, cp2: "-", cg2: 0, idadeRelatorio: "28" });
+        baseDados.unshift({ filial:"DIVINOPOLIS", nf:"000", contrato:"999/0", cli:"Novo", datM:"01/01/2025", datR:"29/01/2025", fck:"30.00", consumo:"0", cp1:"-", cg1:0, cp2:"-", cg2:0, idadeRelatorio:"28" });
         renderTabela();
     }
 
     function exportar(formato) {
-        if (baseDados.length === 0) return;
+        if (!baseDados.length) return;
         let conteudo = "";
         if (formato === 'csv') {
             conteudo = "\ufeffFilial;NF;Contrato;Cliente;Moldagem;Data Rupt;Idade Real;Ruptura(Ref);FCK;Consumo;CP1;Carga1;MPa1;CP2;Carga2;MPa2\n";
-            baseDados.forEach(d => {
-                conteudo += `${d.filial};${d.nf};${d.contrato};${d.cli};${d.datM};${d.datR};${calcularIdade(d.datM, d.datR)};${d.idadeRelatorio};${d.fck};${d.consumo};${d.cp1};${d.cg1};${(d.cg1/AREA).toFixed(2)};${d.cp2};${d.cg2};${(d.cg2/AREA).toFixed(2)}\n`;
-            });
+            baseDados.forEach(d => { conteudo += `${d.filial};${d.nf};${d.contrato};${d.cli};${d.datM};${d.datR};${calcularIdade(d.datM,d.datR)};${d.idadeRelatorio};${d.fck};${d.consumo};${d.cp1};${d.cg1};${(d.cg1/AREA).toFixed(2)};${d.cp2};${d.cg2};${(d.cg2/AREA).toFixed(2)}\n`; });
         } else {
             conteudo = JSON.stringify(baseDados, null, 2);
         }
         const a = document.createElement('a');
         a.href = window.URL.createObjectURL(new Blob([conteudo], { type: 'text/plain' }));
-        a.download = `solomix_export.${formato}`;
-        a.click();
+        a.download = `solomix_export.${formato}`; a.click();
+    }
+
+    /* ==========================================================
+       TAB 2  –  Planilha / Controle (nova aba)
+       ========================================================== */
+    let baseDadosXLS = [];
+    let meuGraficoXLS = null;
+
+    /* ---- Excel / CSV import ---- */
+    document.getElementById('fileInXLS').addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const ext = file.name.split('.').pop().toLowerCase();
+
+        if (ext === 'json') {
+            try { baseDadosXLS = baseDadosXLS.concat(JSON.parse(await file.text())); }
+            catch (err) { alert('Erro ao ler JSON: ' + err.message); }
+            renderTabelaXLS(); e.target.value = ""; return;
+        }
+
+        const data = await file.arrayBuffer();
+        const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: true });
+
+        if (rows.length < 2) { alert('Planilha vazia ou sem cabeçalho.'); e.target.value = ""; return; }
+
+        /* Map headers (lowercase, trimmed) */
+        const headers = rows[0].map(h => String(h).toLowerCase().trim());
+
+        /* Find all occurrences of a header name */
+        function findCol(...names) {
+            for (const n of names) {
+                const idx = headers.indexOf(n.toLowerCase().trim());
+                if (idx >= 0) return idx;
+            }
+            return -1;
+        }
+
+        /* Handle duplicate "carga" columns */
+        const cargaIndices = [];
+        headers.forEach((h, i) => { if (h === 'carga') cargaIndices.push(i); });
+
+        const colMap = {
+            filial:         findCol('filial'),
+            nf:             findCol('nf'),
+            contrato:       findCol('contrato'),
+            cli:            findCol('cliente'),
+            datM:           findCol('moldagem'),
+            datR:           findCol('ruptura'),
+            idadeRelatorio: findCol('ruptura idade','ruptura_idade','rupt.idade','ruptura(idade)','idaderelatorio'),
+            fck:            findCol('fck'),
+            consumo:        findCol('consumo','consumc'),
+            cp1:            findCol('cp1'),
+            cg1:            cargaIndices.length > 0 ? cargaIndices[0] : findCol('carga1','carga 1','carga_1'),
+            mpa1:           findCol('mpa1'),
+            cp2:            findCol('cp2'),
+            cg2:            cargaIndices.length > 1 ? cargaIndices[1] : findCol('carga2','carga 2','carga_2'),
+            mpa2:           findCol('mpa2'),
+            pecaConcretada: findCol('peça concretada','peca concretada','peça_concretada','peca_concretada','peça'),
+            controle:       findCol('controle'),
+            id:             findCol('id'),
+        };
+
+        let added = 0;
+        for (let i = 1; i < rows.length; i++) {
+            const row = rows[i];
+            if (!row || row.every(c => c === '' || c === null || c === undefined)) continue;
+
+            const get = (idx) => {
+                if (idx < 0 || idx >= row.length) return '';
+                const v = row[idx];
+                if (v instanceof Date) return formatExcelDate(v);
+                return String(v).trim();
+            };
+            const getNum = (idx) => { const v = parseFloat(get(idx).replace(',','.')); return isNaN(v) ? 0 : v; };
+
+            let cg1 = getNum(colMap.cg1);
+            let cg2 = getNum(colMap.cg2);
+
+            /* If no load column found but MPa column exists, back-calculate */
+            if (cg1 === 0 && colMap.mpa1 >= 0) {
+                const m = parseFloat(get(colMap.mpa1).replace(',','.'));
+                if (!isNaN(m) && m > 0) cg1 = m * AREA;
+            }
+            if (cg2 === 0 && colMap.mpa2 >= 0) {
+                const m = parseFloat(get(colMap.mpa2).replace(',','.'));
+                if (!isNaN(m) && m > 0) cg2 = m * AREA;
+            }
+
+            baseDadosXLS.push({
+                filial:         get(colMap.filial) || 'DIVINOPOLIS',
+                nf:             get(colMap.nf),
+                contrato:       get(colMap.contrato),
+                cli:            get(colMap.cli),
+                datM:           get(colMap.datM),
+                datR:           get(colMap.datR),
+                idadeRelatorio: get(colMap.idadeRelatorio),
+                fck:            get(colMap.fck),
+                consumo:        get(colMap.consumo),
+                cp1:            get(colMap.cp1),
+                cg1,
+                cp2:            get(colMap.cp2),
+                cg2,
+                pecaConcretada: get(colMap.pecaConcretada),
+                controle:       get(colMap.controle),
+                id:             get(colMap.id),
+            });
+            added++;
+        }
+
+        if (added > 0) renderTabelaXLS();
+        else alert('Nenhuma linha válida encontrada.\nVerifique os cabeçalhos da planilha.');
+        e.target.value = "";
+    });
+
+    /* ---- Render table ---- */
+    function renderTabelaXLS() {
+        const tbody = document.getElementById('corpoTabelaXLS');
+        tbody.innerHTML = baseDadosXLS.map((d, index) => {
+            const optionsFilial = LISTA_FILIAIS.map(f => `<option value="${f}" ${f===d.filial?'selected':''}>${f}</option>`).join('');
+            const mpa1 = d.cg1 > 0 ? (d.cg1/AREA).toFixed(2) : '0.00';
+            const mpa2 = d.cg2 > 0 ? (d.cg2/AREA).toFixed(2) : '0.00';
+            return `
+            <tr data-index="${index}">
+                <td class="col-filial"><select class="select-celula" onchange="baseDadosXLS[${index}].filial=this.value;atualizarSelectsXLS();executarFiltroXLS(true);">${optionsFilial}</select></td>
+                <td contenteditable="true" onblur="baseDadosXLS[${index}].nf=this.innerText;atualizarSelectsXLS()">${d.nf}</td>
+                <td class="col-contrato" contenteditable="true" onblur="baseDadosXLS[${index}].contrato=this.innerText;atualizarSelectsXLS()">${d.contrato}</td>
+                <td contenteditable="true" onblur="baseDadosXLS[${index}].cli=this.innerText;atualizarSelectsXLS()">${d.cli}</td>
+                <td contenteditable="true" onblur="baseDadosXLS[${index}].datM=this.innerText;renderTabelaXLS()">${d.datM}</td>
+                <td contenteditable="true" onblur="baseDadosXLS[${index}].datR=this.innerText;renderTabelaXLS()">${d.datR}</td>
+                <td style="font-weight:bold">${calcularIdade(d.datM,d.datR)}</td>
+                <td class="col-ruptura-ref" contenteditable="true" onblur="baseDadosXLS[${index}].idadeRelatorio=this.innerText;atualizarSelectsXLS()">${d.idadeRelatorio}</td>
+                <td contenteditable="true" onblur="baseDadosXLS[${index}].fck=this.innerText;executarFiltroXLS()">${d.fck}</td>
+                <td contenteditable="true" onblur="baseDadosXLS[${index}].consumo=this.innerText;atualizarSelectsXLS()">${d.consumo}</td>
+                <td contenteditable="true" onblur="baseDadosXLS[${index}].cp1=this.innerText;atualizarSelectsXLS()" class="cp1">${d.cp1}</td>
+                <td contenteditable="true" onblur="baseDadosXLS[${index}].cg1=parseFloat(this.innerText.replace(',','.'));renderTabelaXLS()" class="cp1">${d.cg1}</td>
+                <td class="res-col cp1">${mpa1}</td>
+                <td contenteditable="true" onblur="baseDadosXLS[${index}].cp2=this.innerText;atualizarSelectsXLS()" class="cp2">${d.cp2}</td>
+                <td contenteditable="true" onblur="baseDadosXLS[${index}].cg2=parseFloat(this.innerText.replace(',','.'));renderTabelaXLS()" class="cp2">${d.cg2}</td>
+                <td class="res-col cp2">${mpa2}</td>
+                <td class="col-peca" contenteditable="true" onblur="baseDadosXLS[${index}].pecaConcretada=this.innerText;atualizarSelectsXLS()">${d.pecaConcretada||''}</td>
+                <td class="col-controle" contenteditable="true" onblur="baseDadosXLS[${index}].controle=this.innerText;atualizarSelectsXLS()">${d.controle||''}</td>
+                <td contenteditable="true" onblur="baseDadosXLS[${index}].id=this.innerText;atualizarSelectsXLS()">${d.id||''}</td>
+                <td><button class="btn-del" onclick="if(confirm('Excluir?')){baseDadosXLS.splice(${index},1);renderTabelaXLS();}">X</button></td>
+            </tr>`;
+        }).join('');
+        atualizarSelectsXLS();
+        executarFiltroXLS();
+    }
+
+    /* ---- Update dropdown filters ---- */
+    function atualizarSelectsXLS() {
+        const selects = document.querySelectorAll('#tabelaXLS .filter-input-xls');
+        /* 19 filterable columns (index 0-18); index 19 = actions, no filter */
+        const colunas = ['filial','nf','contrato','cli','datM','datR','idadeReal','idadeRelatorio','fck','consumo','cp1','cg1','mpa1','cp2','cg2','mpa2','pecaConcretada','controle','id'];
+        selects.forEach((select, idx) => {
+            const valorAtual = select.value;
+            const uniqueValues = new Set();
+            baseDadosXLS.forEach(d => {
+                let val = "";
+                if (colunas[idx] === 'idadeReal') val = calcularIdade(d.datM, d.datR);
+                else if (colunas[idx] === 'mpa1') val = d.cg1 > 0 ? (d.cg1/AREA).toFixed(2) : '0.00';
+                else if (colunas[idx] === 'mpa2') val = d.cg2 > 0 ? (d.cg2/AREA).toFixed(2) : '0.00';
+                else val = d[colunas[idx]];
+                if (val !== undefined && val !== null) uniqueValues.add(val.toString());
+            });
+            select.innerHTML = '<option value="">Todos</option>';
+            Array.from(uniqueValues).sort().forEach(val => {
+                const opt = document.createElement('option');
+                opt.value = val; opt.textContent = val;
+                if (val === valorAtual) opt.selected = true;
+                select.appendChild(opt);
+            });
+        });
+    }
+
+    /* ---- Filter execution ---- */
+    function executarFiltroXLS(apenasGrafico = false) {
+        const selects = document.querySelectorAll('#tabelaXLS .filter-input-xls');
+        const rows = document.querySelectorAll('#corpoTabelaXLS tr');
+        let dadosFiltrados = [];
+        rows.forEach(row => {
+            let visivel = true;
+            selects.forEach((s, idx) => {
+                if (!s.value) return;
+                const txt = idx === 0 ? row.cells[idx].querySelector('select').value : row.cells[idx].innerText.trim();
+                if (txt !== s.value) visivel = false;
+            });
+            if (!apenasGrafico) row.style.display = visivel ? "" : "none";
+            if (visivel) dadosFiltrados.push(baseDadosXLS[row.getAttribute('data-index')]);
+        });
+        atualizarAnaliseGraficaXLS(dadosFiltrados);
+    }
+
+    function limparFiltrosXLS() {
+        document.querySelectorAll('#tabelaXLS .filter-input-xls').forEach(s => s.value = "");
+        executarFiltroXLS();
+    }
+
+    /* ---- Chart & cards ---- */
+    function atualizarAnaliseGraficaXLS(dados) {
+        const getMpa1 = d => d.cg1 > 0 ? d.cg1/AREA : 0;
+        const getMpa2 = d => d.cg2 > 0 ? d.cg2/AREA : 0;
+        const resTotais = dados.flatMap(d => [getMpa1(d), getMpa2(d)]).filter(v => v > 1);
+        const media = resTotais.length ? resTotais.reduce((a,b)=>a+b,0)/resTotais.length : 0;
+        const desvio = resTotais.length > 1 ? Math.sqrt(resTotais.reduce((a,b)=>a+Math.pow(b-media,2),0)/(resTotais.length-1)) : 0;
+        const consumosNumericos = dados.map(d => parseFloat(String(d.consumo).replace(',','.'))).filter(v => !isNaN(v) && v > 0);
+        const consumoMedio = consumosNumericos.length ? consumosNumericos.reduce((a,b)=>a+b,0)/consumosNumericos.length : 0;
+
+        document.getElementById('statMedia2').innerText = media.toFixed(2) + " MPa";
+        document.getElementById('statDesvio2').innerText = desvio.toFixed(2);
+        document.getElementById('statCV2').innerText = (media > 0 ? (desvio/media*100).toFixed(2) : 0) + "%";
+        document.getElementById('statTotal2').innerText = dados.length;
+        document.getElementById('statConsumoMedio2').innerText = consumoMedio.toFixed(2) + " kg/m³";
+
+        const ctx = document.getElementById('graficoXLS').getContext('2d');
+        if (meuGraficoXLS) meuGraficoXLS.destroy();
+        meuGraficoXLS = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: dados.map((d, i) => d.nf || d.id || `#${i + 1}`),
+                datasets: [
+                    { label: 'CP1 (MPa)', data: dados.map(d => getMpa1(d).toFixed(2)), backgroundColor: '#3182ce' },
+                    { label: 'CP2 (MPa)', data: dados.map(d => getMpa2(d).toFixed(2)), backgroundColor: '#63b3ed' },
+                    { label: 'FCK', data: dados.map(d => d.fck), type: 'line', borderColor: '#e53e3e', pointRadius: 0, fill: false }
+                ]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    }
+
+    /* ---- Manual insert ---- */
+    function adicionarLinhaXLS() {
+        baseDadosXLS.unshift({
+            filial:"DIVINOPOLIS", nf:"000", contrato:"999/0", cli:"Novo",
+            datM:"01/01/2025", datR:"29/01/2025", fck:"30", consumo:"0",
+            cp1:"-", cg1:0, cp2:"-", cg2:0,
+            idadeRelatorio:"28", pecaConcretada:"", controle:"CONTROLE", id:""
+        });
+        renderTabelaXLS();
+    }
+
+    /* ---- Export ---- */
+    function exportarXLS(formato) {
+        if (!baseDadosXLS.length) return;
+        let conteudo = "";
+        if (formato === 'csv') {
+            conteudo = "\ufeffFilial;NF;Contrato;Cliente;Moldagem;Data Rupt;Idade Real;Rupt.Idade;FCK;Consumo;CP1;Carga1(kN);MPa1;CP2;Carga2(kN);MPa2;Peça Concretada;Controle;ID\n";
+            baseDadosXLS.forEach(d => {
+                const mpa1 = d.cg1 > 0 ? (d.cg1/AREA).toFixed(2) : '0.00';
+                const mpa2 = d.cg2 > 0 ? (d.cg2/AREA).toFixed(2) : '0.00';
+                conteudo += `${d.filial};${d.nf};${d.contrato};${d.cli};${d.datM};${d.datR};${calcularIdade(d.datM,d.datR)};${d.idadeRelatorio};${d.fck};${d.consumo};${d.cp1};${d.cg1};${mpa1};${d.cp2};${d.cg2};${mpa2};${d.pecaConcretada||''};${d.controle||''};${d.id||''}\n`;
+            });
+        } else {
+            conteudo = JSON.stringify(baseDadosXLS, null, 2);
+        }
+        const a = document.createElement('a');
+        a.href = window.URL.createObjectURL(new Blob([conteudo], { type: 'text/plain' }));
+        a.download = `solomix_planilha.${formato}`; a.click();
     }
 </script>
 </body>
