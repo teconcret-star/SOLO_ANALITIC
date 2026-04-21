@@ -48,6 +48,26 @@
         #modalFilial { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
         .modal-content { background: white; padding: 30px; border-radius: 12px; width: 350px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
         .modal-content select { width: 100%; padding: 10px; margin: 15px 0; border-radius: 6px; border: 1px solid #cbd5e0; font-size: 14px; }
+
+        /* ===== DASHBOARD STYLES ===== */
+        .dash-filter-panel { background: white; border-radius: 12px; padding: 14px 16px; margin-bottom: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); flex-shrink: 0; }
+        .dash-filter-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+        .dash-filter-row:last-child { margin-bottom: 0; }
+        .dash-filter-group { display: flex; flex-direction: column; min-width: 130px; flex: 1; }
+        .dash-filter-group label { font-size: 10px; font-weight: bold; color: #718096; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; }
+        .dash-filter-group input[type="date"],
+        .dash-filter-group select { padding: 5px 8px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 12px; background: white; color: #2d3748; width: 100%; box-sizing: border-box; }
+        .dash-filter-group input[type="date"]:focus,
+        .dash-filter-group select:focus { outline: none; border-color: #3182ce; }
+        .dash-section-title { font-size: 11px; font-weight: bold; color: #718096; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 8px 0; padding-bottom: 4px; border-bottom: 1px solid #e2e8f0; }
+        .dash-charts-row { display: grid; gap: 14px; margin-bottom: 14px; }
+        .dash-charts-row.cols-3 { grid-template-columns: repeat(3, 1fr); }
+        .dash-charts-row.cols-2 { grid-template-columns: repeat(2, 1fr); }
+        .dash-chart-box { background: white; padding: 12px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); position: relative; height: 270px; }
+        .dash-chart-box-wide { background: white; padding: 12px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 14px; height: 290px; }
+        .dash-badge { display: inline-block; padding: 2px 7px; border-radius: 9px; font-size: 10px; font-weight: bold; color: white; background: #38a169; }
+        .dash-badge.red { background: #e53e3e; }
+        .stat-card-dash { background: white; padding: 12px 10px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); text-align: center; }
     </style>
 </head>
 <body>
@@ -103,12 +123,36 @@
             <button class="btn" style="background:#4a5568;color:white;" onclick="exportarXLS('json')">💾 SALVAR BACKUP (JSON)</button>
         </div>
     </div>
-</div>
+
+    <!-- Sidebar Tab 3 – Dashboard -->
+    <div id="sidebar-tab3" class="sidebar-section" style="display:none">
+        <div style="background:#2d3748;padding:15px;border-radius:8px;margin-bottom:15px;text-align:center;">
+            <span style="font-size:30px">📈</span>
+            <p style="margin:8px 0 0;font-size:12px;color:#a0aec0;line-height:1.4;">Dashboard combina dados de PDF e Planilha</p>
+        </div>
+        <button class="btn" style="background:#3182ce;color:white;margin-bottom:10px;" onclick="atualizarDashboard()">🔁 ATUALIZAR DASHBOARD</button>
+        <button class="btn btn-clear" onclick="limparFiltrosDash()">🔄 LIMPAR FILTROS</button>
+        <div style="flex:1"></div>
+        <div style="background:#2d3748;padding:12px;border-radius:8px;font-size:11px;color:#a0aec0;line-height:1.6;">
+            <strong style="color:#63b3ed;">Filtros Disponíveis:</strong><br>
+            📅 Período de Moldagem<br>
+            📅 Período de Ruptura<br>
+            🏭 Filial<br>
+            📋 FCK Projeto<br>
+            👷 Cliente<br>
+            🔬 Controle<br>
+            🧱 Peça Concretada<br>
+            📂 Fonte de Dados
+        </div>
+    </div>
+
+</div><!-- end sidebar -->
 
 <div class="main">
     <div class="tab-nav">
         <button class="tab-btn active" data-tab="tab1" onclick="switchTab('tab1')">📄 PDF / Relatórios</button>
         <button class="tab-btn" data-tab="tab2" onclick="switchTab('tab2')">📊 Planilha / Controle</button>
+        <button class="tab-btn" data-tab="tab3" onclick="switchTab('tab3')">📈 Dashboard</button>
     </div>
 
     <!-- ===== TAB 1 ===== -->
@@ -195,7 +239,95 @@
             </table>
         </div>
     </div>
-</div>
+
+    <!-- ===== TAB 3 – DASHBOARD ===== -->
+    <div id="tab3-content" class="tab-content" style="overflow-y:auto;">
+
+        <!-- Filter Panel -->
+        <div class="dash-filter-panel">
+            <p class="dash-section-title">🔍 Filtros do Dashboard</p>
+            <div class="dash-filter-row">
+                <div class="dash-filter-group">
+                    <label>Moldagem De</label>
+                    <input type="date" id="dashFiltroMoldDe" onchange="atualizarDashboard()">
+                </div>
+                <div class="dash-filter-group">
+                    <label>Moldagem Até</label>
+                    <input type="date" id="dashFiltroMoldAte" onchange="atualizarDashboard()">
+                </div>
+                <div class="dash-filter-group">
+                    <label>Ruptura De</label>
+                    <input type="date" id="dashFiltroRuptDe" onchange="atualizarDashboard()">
+                </div>
+                <div class="dash-filter-group">
+                    <label>Ruptura Até</label>
+                    <input type="date" id="dashFiltroRuptAte" onchange="atualizarDashboard()">
+                </div>
+                <div class="dash-filter-group">
+                    <label>Fonte</label>
+                    <select id="dashFiltroFonte" onchange="atualizarDashboard()">
+                        <option value="">Ambas</option>
+                        <option value="pdf">PDF / Relatórios</option>
+                        <option value="xls">Planilha / Controle</option>
+                    </select>
+                </div>
+            </div>
+            <div class="dash-filter-row">
+                <div class="dash-filter-group">
+                    <label>Filial</label>
+                    <select id="dashFiltroFilial" onchange="atualizarDashboard()"><option value="">Todas</option></select>
+                </div>
+                <div class="dash-filter-group">
+                    <label>FCK Projeto</label>
+                    <select id="dashFiltroFck" onchange="atualizarDashboard()"><option value="">Todos</option></select>
+                </div>
+                <div class="dash-filter-group">
+                    <label>Cliente</label>
+                    <select id="dashFiltroCli" onchange="atualizarDashboard()"><option value="">Todos</option></select>
+                </div>
+                <div class="dash-filter-group">
+                    <label>Controle</label>
+                    <select id="dashFiltroControle" onchange="atualizarDashboard()"><option value="">Todos</option></select>
+                </div>
+                <div class="dash-filter-group">
+                    <label>Peça Concretada</label>
+                    <select id="dashFiltroPeca" onchange="atualizarDashboard()"><option value="">Todas</option></select>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPI Cards -->
+        <div style="display:grid;grid-template-columns:repeat(8,1fr);gap:12px;margin-bottom:14px;flex-shrink:0;">
+            <div class="stat-card" style="border-top-color:#3182ce"><span class="stat-label">Resistência Média</span><span id="dashStatMedia" class="stat-val">0.00 MPa</span></div>
+            <div class="stat-card" style="border-top-color:#805ad5"><span class="stat-label">Desvio Padrão (S)</span><span id="dashStatDesvio" class="stat-val">0.00</span></div>
+            <div class="stat-card" style="border-top-color:#dd6b20"><span class="stat-label">Coef. Variação</span><span id="dashStatCV" class="stat-val">0.00%</span></div>
+            <div class="stat-card" style="border-top-color:#38a169"><span class="stat-label">Total Amostras</span><span id="dashStatTotal" class="stat-val">0</span></div>
+            <div class="stat-card" style="border-top-color:#2b6cb0"><span class="stat-label">Consumo Médio</span><span id="dashStatConsumo" class="stat-val">0.00 kg/m³</span></div>
+            <div class="stat-card" style="border-top-color:#276749"><span class="stat-label">MPa Mínimo</span><span id="dashStatMin" class="stat-val">–</span></div>
+            <div class="stat-card" style="border-top-color:#1a365d"><span class="stat-label">MPa Máximo</span><span id="dashStatMax" class="stat-val">–</span></div>
+            <div class="stat-card" style="border-top-color:#e53e3e"><span class="stat-label">Abaixo do FCK</span><span id="dashStatAbaixo" class="stat-val">0 (0%)</span></div>
+        </div>
+
+        <!-- Chart Row 1: full-width bar chart -->
+        <div class="dash-chart-box-wide">
+            <canvas id="graficoDash1"></canvas>
+        </div>
+
+        <!-- Chart Row 2: 3 charts -->
+        <div class="dash-charts-row cols-3">
+            <div class="dash-chart-box"><canvas id="graficoDash2"></canvas></div>
+            <div class="dash-chart-box"><canvas id="graficoDash3"></canvas></div>
+            <div class="dash-chart-box"><canvas id="graficoDash4"></canvas></div>
+        </div>
+
+        <!-- Chart Row 3: 2 charts -->
+        <div class="dash-charts-row cols-2" style="margin-bottom:20px;">
+            <div class="dash-chart-box"><canvas id="graficoDash5"></canvas></div>
+            <div class="dash-chart-box"><canvas id="graficoDash6"></canvas></div>
+        </div>
+
+    </div>
+</div><!-- end main -->
 
 <script>
     /* ===== SHARED CONSTANTS ===== */
@@ -256,6 +388,8 @@
         document.getElementById(tab + '-content').classList.add('active-tab');
         document.getElementById('sidebar-tab1').style.display = tab === 'tab1' ? 'flex' : 'none';
         document.getElementById('sidebar-tab2').style.display = tab === 'tab2' ? 'flex' : 'none';
+        document.getElementById('sidebar-tab3').style.display = tab === 'tab3' ? 'flex' : 'none';
+        if (tab === 'tab3') atualizarDashboard();
     }
 
     /* ==========================================================
@@ -403,8 +537,10 @@
         }).join('');
         atualizarSelects();
         executarFiltro();
+        if (document.getElementById('tab3-content').classList.contains('active-tab')) atualizarDashboard();
     }
 
+    /* ---- Update dropdown filters (Tab 1) ---- */
     function atualizarSelects() {
         const selects = document.querySelectorAll('#tabelaMain .filter-input');
         const colunas = ['filial','nf','contrato','cli','datM','datR','idadeReal','idadeRelatorio','fck','consumo','cp1','cg1','mpa1','cp2','cg2','mpa2'];
@@ -664,9 +800,10 @@
         }).join('');
         atualizarSelectsXLS();
         executarFiltroXLS();
+        if (document.getElementById('tab3-content').classList.contains('active-tab')) atualizarDashboard();
     }
 
-    /* ---- Update dropdown filters ---- */
+    /* ---- Update dropdown filters (Tab 2) ---- */
     function atualizarSelectsXLS() {
         const selects = document.querySelectorAll('#tabelaXLS .filter-input-xls');
         /* 19 filterable columns (index 0-18); index 19 = actions, no filter */
@@ -795,6 +932,301 @@
         const a = document.createElement('a');
         a.href = window.URL.createObjectURL(new Blob([conteudo], { type: 'text/plain' }));
         a.download = `solomix_planilha.${formato}`; a.click();
+    }
+
+    /* ==========================================================
+       TAB 3  –  DASHBOARD  (análise consolidada)
+       ========================================================== */
+    const DASH_CORES = ['#3182ce','#38a169','#e53e3e','#dd6b20','#805ad5','#2b6cb0','#276749','#9b2335','#744210','#4c51bf','#2d3748','#63b3ed'];
+    const dashGraficos = {};
+
+    /* Helper: create or update a Chart.js instance */
+    function criarOuAtualizarGrafico(id, config) {
+        if (dashGraficos[id]) {
+            dashGraficos[id].data = config.data;
+            if (config.options) {
+                dashGraficos[id].options.plugins    = config.options.plugins    || dashGraficos[id].options.plugins;
+                dashGraficos[id].options.scales     = config.options.scales     || dashGraficos[id].options.scales;
+                /* Reset or apply indexAxis to avoid stale horizontal-bar configuration */
+                if (config.options.indexAxis) {
+                    dashGraficos[id].options.indexAxis = config.options.indexAxis;
+                } else {
+                    delete dashGraficos[id].options.indexAxis;
+                }
+            }
+            dashGraficos[id].update('none');
+        } else {
+            const ctx = document.getElementById(id).getContext('2d');
+            dashGraficos[id] = new Chart(ctx, config);
+        }
+    }
+
+    /* Build combined + filtered dataset */
+    function getDadosDash() {
+        const fonte = document.getElementById('dashFiltroFonte').value;
+        let todos = [];
+        if (fonte !== 'xls') baseDados.forEach(d => todos.push(Object.assign({}, d, {_fonte:'pdf'})));
+        if (fonte !== 'pdf') baseDadosXLS.forEach(d => todos.push(Object.assign({}, d, {_fonte:'xls'})));
+
+        const moldDe  = document.getElementById('dashFiltroMoldDe').value;
+        const moldAte = document.getElementById('dashFiltroMoldAte').value;
+        const ruptDe  = document.getElementById('dashFiltroRuptDe').value;
+        const ruptAte = document.getElementById('dashFiltroRuptAte').value;
+        const filtFilial   = document.getElementById('dashFiltroFilial').value;
+        const filtFck      = document.getElementById('dashFiltroFck').value;
+        const filtCli      = document.getElementById('dashFiltroCli').value;
+        const filtControle = document.getElementById('dashFiltroControle').value;
+        const filtPeca     = document.getElementById('dashFiltroPeca').value;
+
+        return todos.filter(d => {
+            const datM = converterData(d.datM);
+            const datR = converterData(d.datR);
+            if (moldDe  && datM && datM < new Date(moldDe))  return false;
+            if (moldAte && datM) { const ate = new Date(moldAte); ate.setHours(23,59,59); if (datM > ate) return false; }
+            if (ruptDe  && datR && datR < new Date(ruptDe))  return false;
+            if (ruptAte && datR) { const ate = new Date(ruptAte); ate.setHours(23,59,59); if (datR > ate) return false; }
+            if (filtFilial   && d.filial         !== filtFilial)   return false;
+            if (filtFck      && d.fck            !== filtFck)      return false;
+            if (filtCli      && d.cli            !== filtCli)      return false;
+            if (filtControle && (d.controle||'') !== filtControle) return false;
+            if (filtPeca     && (d.pecaConcretada||'') !== filtPeca) return false;
+            return true;
+        });
+    }
+
+    /* Populate dropdown selects from full (unfiltered) dataset */
+    function atualizarDropdownsDash() {
+        const fonte = document.getElementById('dashFiltroFonte').value;
+        let todos = [];
+        if (fonte !== 'xls') baseDados.forEach(d => todos.push(d));
+        if (fonte !== 'pdf') baseDadosXLS.forEach(d => todos.push(d));
+
+        const sets = { filial: new Set(), fck: new Set(), cli: new Set(), controle: new Set(), peca: new Set() };
+        todos.forEach(d => {
+            if (d.filial)          sets.filial.add(d.filial);
+            if (d.fck)             sets.fck.add(d.fck);
+            if (d.cli)             sets.cli.add(d.cli);
+            if (d.controle)        sets.controle.add(d.controle);
+            if (d.pecaConcretada)  sets.peca.add(d.pecaConcretada);
+        });
+
+        [
+            ['dashFiltroFilial',   'filial',   'Todas'],
+            ['dashFiltroFck',      'fck',      'Todos'],
+            ['dashFiltroCli',      'cli',      'Todos'],
+            ['dashFiltroControle', 'controle', 'Todos'],
+            ['dashFiltroPeca',     'peca',     'Todas'],
+        ].forEach(([id, key, placeholder]) => {
+            const sel = document.getElementById(id);
+            const prev = sel.value;
+            const sorted = [...sets[key]].sort();
+            let html = `<option value="">${placeholder}</option>`;
+            sorted.forEach(v => { const e = escHtml(v); html += `<option value="${e}"${v===prev?' selected':''}>${e}</option>`; });
+            sel.innerHTML = html;
+        });
+    }
+
+    /* Helper: calculate average MPa for a sample (filters out zero/invalid values) */
+    function getMpaMedia(d) { return ((d.cg1/AREA) + (d.cg2/AREA)) / 2; }
+
+    /* Main dashboard refresh */
+    function atualizarDashboard() {
+        atualizarDropdownsDash();
+        const dados = getDadosDash();
+
+        /* ---- KPI calculations ---- */
+        const mpas = dados.flatMap(d => {
+            const v1 = d.cg1 / AREA, v2 = d.cg2 / AREA;
+            /* Filter out values ≤ 1 MPa which represent invalid/untested samples */
+            return [v1 > 1 ? v1 : null, v2 > 1 ? v2 : null].filter(Boolean);
+        });
+        const n = mpas.length;
+        const media  = n ? mpas.reduce((a,b)=>a+b,0)/n : 0;
+        const desvio = n > 1 ? Math.sqrt(mpas.reduce((a,b)=>a+Math.pow(b-media,2),0)/(n-1)) : 0;
+        const cv     = media > 0 ? desvio/media*100 : 0;
+        const minMpa = n ? Math.min(...mpas) : null;
+        const maxMpa = n ? Math.max(...mpas) : null;
+
+        const consumos = dados.map(d=>parseFloat(String(d.consumo).replace(',','.'))).filter(v=>!isNaN(v)&&v>0);
+        const consumoMedio = consumos.length ? consumos.reduce((a,b)=>a+b,0)/consumos.length : 0;
+
+        let abaixo = 0;
+        dados.forEach(d => {
+            const fckN = parseFloat(String(d.fck).replace(',','.'));
+            if (!isNaN(fckN) && fckN > 0) {
+                if (getMpaMedia(d) < fckN) abaixo++;
+            }
+        });
+        const pctAbaixo = dados.length > 0 ? (abaixo/dados.length*100).toFixed(1) : 0;
+
+        document.getElementById('dashStatMedia').innerText   = media.toFixed(2) + ' MPa';
+        document.getElementById('dashStatDesvio').innerText  = desvio.toFixed(2);
+        document.getElementById('dashStatCV').innerText      = cv.toFixed(2) + '%';
+        document.getElementById('dashStatTotal').innerText   = dados.length;
+        document.getElementById('dashStatConsumo').innerText = consumoMedio.toFixed(2) + ' kg/m³';
+        document.getElementById('dashStatMin').innerText     = minMpa !== null ? minMpa.toFixed(2) + ' MPa' : '–';
+        document.getElementById('dashStatMax').innerText     = maxMpa !== null ? maxMpa.toFixed(2) + ' MPa' : '–';
+        document.getElementById('dashStatAbaixo').innerText  = `${abaixo} (${pctAbaixo}%)`;
+
+        /* ---- Charts ---- */
+        dashGrafico1_Resistencia(dados);
+        dashGrafico2_PorFilial(dados);
+        dashGrafico3_Temporal(dados);
+        dashGrafico4_PorFck(dados);
+        dashGrafico5_Consumo(dados);
+        dashGrafico6_Conformidade(dados);
+    }
+
+    /* Chart 1 – Bar + Line: MPa por amostra vs FCK */
+    /* MAX_CHART_SAMPLES: limit to last 80 samples to keep the chart readable */
+    const MAX_CHART_SAMPLES = 80;
+    function dashGrafico1_Resistencia(dados) {
+        const slice = dados.slice(-MAX_CHART_SAMPLES);
+        criarOuAtualizarGrafico('graficoDash1', {
+            type: 'bar',
+            data: {
+                labels: slice.map(d => d.nf || d.id || '?'),
+                datasets: [
+                    { label: 'CP1 (MPa)', data: slice.map(d => (d.cg1/AREA).toFixed(2)), backgroundColor: 'rgba(49,130,206,0.75)', order: 2 },
+                    { label: 'CP2 (MPa)', data: slice.map(d => (d.cg2/AREA).toFixed(2)), backgroundColor: 'rgba(99,179,237,0.75)', order: 2 },
+                    { label: 'FCK Projeto', data: slice.map(d => parseFloat(d.fck)||0), type: 'line', borderColor: '#e53e3e', backgroundColor: 'transparent', pointRadius: 3, borderWidth: 2, tension: 0, order: 1 }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, animation: false,
+                plugins: { title: { display: true, text: 'Resistência por Amostra (MPa) vs FCK Projetado' }, legend: { position: 'top' } },
+                scales: { y: { beginAtZero: true, title: { display: true, text: 'MPa' } } }
+            }
+        });
+    }
+
+    /* Chart 2 – Doughnut: amostras por filial */
+    function dashGrafico2_PorFilial(dados) {
+        const cnt = {};
+        dados.forEach(d => { cnt[d.filial] = (cnt[d.filial]||0) + 1; });
+        const keys = Object.keys(cnt).sort();
+        criarOuAtualizarGrafico('graficoDash2', {
+            type: 'doughnut',
+            data: {
+                labels: keys,
+                datasets: [{ data: keys.map(k=>cnt[k]), backgroundColor: DASH_CORES }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, animation: false,
+                plugins: {
+                    title: { display: true, text: 'Distribuição de Amostras por Filial' },
+                    legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 12 } }
+                }
+            }
+        });
+    }
+
+    /* Chart 3 – Line: resistência média mensal */
+    function dashGrafico3_Temporal(dados) {
+        const map = {};
+        dados.forEach(d => {
+            const dt = converterData(d.datM);
+            if (!dt) return;
+            const chave = `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}`;
+            if (!map[chave]) map[chave] = [];
+            const mpa = ((d.cg1 + d.cg2) / 2) / AREA;
+            if (mpa > 1) map[chave].push(mpa);
+        });
+        const meses = Object.keys(map).sort();
+        const medias = meses.map(m => { const vs = map[m]; return vs.length ? (vs.reduce((a,b)=>a+b,0)/vs.length).toFixed(2) : null; });
+        criarOuAtualizarGrafico('graficoDash3', {
+            type: 'line',
+            data: {
+                labels: meses,
+                datasets: [{
+                    label: 'Resist. Média Mensal (MPa)',
+                    data: medias,
+                    borderColor: '#3182ce',
+                    backgroundColor: 'rgba(49,130,206,0.12)',
+                    fill: true, tension: 0.35, pointRadius: 4, borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, animation: false,
+                plugins: { title: { display: true, text: 'Evolução Temporal da Resistência' } },
+                scales: { x: { ticks: { font: { size: 10 } } }, y: { beginAtZero: false } }
+            }
+        });
+    }
+
+    /* Chart 4 – Horizontal bar: amostras por classe FCK */
+    function dashGrafico4_PorFck(dados) {
+        const cnt = {};
+        dados.forEach(d => { const f = d.fck || '?'; cnt[f] = (cnt[f]||0) + 1; });
+        const keys = Object.keys(cnt).sort();
+        criarOuAtualizarGrafico('graficoDash4', {
+            type: 'bar',
+            data: {
+                labels: keys,
+                datasets: [{ label: 'Amostras por FCK', data: keys.map(k=>cnt[k]), backgroundColor: '#805ad5' }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true, maintainAspectRatio: false, animation: false,
+                plugins: { title: { display: true, text: 'Distribuição por Classe FCK' }, legend: { display: false } },
+                scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } }
+            }
+        });
+    }
+
+    /* Chart 5 – Bar: consumo médio de cimento por filial */
+    function dashGrafico5_Consumo(dados) {
+        const map = {};
+        dados.forEach(d => {
+            const c = parseFloat(String(d.consumo).replace(',','.'));
+            if (isNaN(c) || c <= 0) return;
+            if (!map[d.filial]) map[d.filial] = [];
+            map[d.filial].push(c);
+        });
+        const filiais = Object.keys(map).sort();
+        const medias  = filiais.map(f => (map[f].reduce((a,b)=>a+b,0)/map[f].length).toFixed(2));
+        criarOuAtualizarGrafico('graficoDash5', {
+            type: 'bar',
+            data: {
+                labels: filiais,
+                datasets: [{ label: 'Consumo Médio (kg/m³)', data: medias, backgroundColor: '#38a169' }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, animation: false,
+                plugins: { title: { display: true, text: 'Consumo Médio de Cimento por Filial' } },
+                scales: { y: { beginAtZero: true, title: { display: true, text: 'kg/m³' } } }
+            }
+        });
+    }
+
+    /* Chart 6 – Pie: conformidade vs FCK */
+    function dashGrafico6_Conformidade(dados) {
+        let conformes = 0, naoConformes = 0, semFck = 0;
+        dados.forEach(d => {
+            const fckN = parseFloat(String(d.fck).replace(',','.'));
+            if (isNaN(fckN) || fckN <= 0) { semFck++; return; }
+            if (getMpaMedia(d) >= fckN) conformes++; else naoConformes++;
+        });
+        criarOuAtualizarGrafico('graficoDash6', {
+            type: 'pie',
+            data: {
+                labels: ['Conformes (MPa ≥ FCK)', 'Não-Conformes (MPa < FCK)', 'Sem FCK Definido'],
+                datasets: [{ data: [conformes, naoConformes, semFck], backgroundColor: ['#38a169','#e53e3e','#a0aec0'] }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, animation: false,
+                plugins: {
+                    title: { display: true, text: 'Conformidade vs FCK Projetado' },
+                    legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 12 } }
+                }
+            }
+        });
+    }
+
+    function limparFiltrosDash() {
+        ['dashFiltroMoldDe','dashFiltroMoldAte','dashFiltroRuptDe','dashFiltroRuptAte'].forEach(id => { document.getElementById(id).value = ''; });
+        ['dashFiltroFonte','dashFiltroFilial','dashFiltroFck','dashFiltroCli','dashFiltroControle','dashFiltroPeca'].forEach(id => { document.getElementById(id).value = ''; });
+        atualizarDashboard();
     }
 </script>
 </body>
