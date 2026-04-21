@@ -220,6 +220,11 @@
         td.closest('tr').cells[mpaColIdx].textContent = (val / AREA).toFixed(2);
     }
 
+    /* Escape HTML special characters to prevent XSS in option strings */
+    function escHtml(str) {
+        return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+
     /* ===== SHARED UTILITIES ===== */
     function converterData(str) {
         if (!str) return null;
@@ -426,7 +431,8 @@
             const sorted = [...uniqueSets[idx]].sort();
             let html = '<option value="">Todos</option>';
             for (const val of sorted) {
-                html += `<option value="${val}"${val === valorAtual ? ' selected' : ''}>${val}</option>`;
+                const esc = escHtml(val);
+                html += `<option value="${esc}"${val === valorAtual ? ' selected' : ''}>${esc}</option>`;
             }
             select.innerHTML = html;
         });
@@ -688,7 +694,8 @@
             const sorted = [...uniqueSets[idx]].sort();
             let html = '<option value="">Todos</option>';
             for (const val of sorted) {
-                html += `<option value="${val}"${val === valorAtual ? ' selected' : ''}>${val}</option>`;
+                const esc = escHtml(val);
+                html += `<option value="${esc}"${val === valorAtual ? ' selected' : ''}>${esc}</option>`;
             }
             select.innerHTML = html;
         });
